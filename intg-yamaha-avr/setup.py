@@ -333,24 +333,26 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
     :return: the setup action on how to continue
     """
     ip = msg.input_values["ip"]
+    data = {}
     if ip is not None and ip != "":
         _LOG.debug("Connecting to Yamaha AVR at %s", ip)
 
         dev = Device(ip)
         res = dev.request(System.get_device_info())
+        data = res.json()
 
         _LOG.info("Yamaha AVR info: %s", res)
 
     # if we are adding a new device: make sure it's not already configured
-    if _cfg_add_device and config.devices.contains(res.get("serial_number")):
+    if _cfg_add_device and config.devices.contains(data.get("serial_number")):
         _LOG.info(
             "Skipping found device %s: already configured",
-            res.get("model_name"),
+            data.get("model_name"),
         )
         return SetupError(error_type=IntegrationSetupError.OTHER)
     device = YamahaDevice(
-        identifier=res.get("serial_number"),
-        name=res.get("model_name"),
+        identifier=data.get("serial_number"),
+        name=data.get("model_name"),
         address=ip,
     )
 
