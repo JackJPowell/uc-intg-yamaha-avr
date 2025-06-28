@@ -288,7 +288,7 @@ class YamahaAVR:
     async def _poll_worker(self) -> None:
         await asyncio.sleep(1)
         while True:
-            self.get_status()
+            await self.get_status()
             await asyncio.sleep(10)
 
     async def get_status(self) -> str:
