@@ -103,7 +103,7 @@ class YamahaMediaPlayer(MediaPlayer):
                     )
                 case media_player.Commands.OFF:
                     res = await avr.send_command(
-                        "setPower", group="zone", zone="main", power="off"
+                        "setPower", group="zone", zone="main", power="standby"
                     )
                 case media_player.Commands.TOGGLE:
                     res = await avr.send_command(
@@ -148,23 +148,36 @@ class YamahaMediaPlayer(MediaPlayer):
                     # res = await avr.send_command("sendIrCode", ir_code)
                     pass
                 case media_player.Commands.SELECT_SOURCE:
-                    await avr.send_command("setInput", zone, params.get("source"))
+                    await avr.send_command(
+                        "setInput",
+                        gropu="zone",
+                        zone="main",
+                        source=params.get("source"),
+                    )
                 # --- simple commands ---
                 case SimpleCommands.EXIT.value:
                     # res = await avr.send_command("sendIrCode", ir_code)
                     pass
                 case SimpleCommands.SLEEP.value:  # TODO sleep time
-                    res = await avr.send_command("setSleep", zone, 60)
+                    res = await avr.send_command(
+                        "setSleep", group="zone", zone="main", sleep="60"
+                    )
                 case SimpleCommands.HDMI_OUTPUT_1.value:
-                    res = await avr.send_command("setHdmiOut1")
+                    res = await avr.send_command(
+                        "setHdmiOut1", group="zone", zone="main"
+                    )
                 case SimpleCommands.HDMI_OUTPUT_2.value:
-                    res = await avr.send_command("setHdmiOut2")
+                    res = await avr.send_command(
+                        "setHdmiOut2", group="zone", zone="main"
+                    )
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
-                    res = await avr.send_command("setDirect")
+                    res = await avr.send_command("setDirect", group="zone", zone="main")
                 case SimpleCommands.SOUND_MODE_PURE.value:
-                    res = await avr.send_command("setPure")
+                    res = await avr.send_command("setPure", group="zone", zone="main")
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
-                    res = await avr.send_command("setClearVoice")
+                    res = await avr.send_command(
+                        "setClearVoice", group="zone", zone="main"
+                    )
 
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)

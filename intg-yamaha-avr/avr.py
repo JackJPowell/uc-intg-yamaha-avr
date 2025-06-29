@@ -270,7 +270,8 @@ class YamahaAVR:
                         case "setVolume":
                             # TODO add volume step to setup flow
                             volume = kwargs["volume"]  # up, down, level
-                            step = self._device.volume_step
+                            # step = self._device.volume_step
+                            step = "1"
                             res = await avr.request(Zone.set_volume(zone, volume, step))
                         case "setMute":
                             mute = kwargs["mute"]  # True, False
