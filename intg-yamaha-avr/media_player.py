@@ -150,9 +150,9 @@ class YamahaMediaPlayer(MediaPlayer):
                 case media_player.Commands.SELECT_SOURCE:
                     await avr.send_command(
                         "setInput",
-                        gropu="zone",
+                        group="zone",
                         zone="main",
-                        source=params.get("source"),
+                        input_source=params.get("source"),
                     )
                 # --- simple commands ---
                 case SimpleCommands.EXIT.value:
