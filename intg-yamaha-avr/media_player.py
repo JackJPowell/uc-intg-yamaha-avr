@@ -92,7 +92,7 @@ class YamahaMediaPlayer(MediaPlayer):
 
         avr = self._device
         zone = self._device.zone
-        ir_code = _get_cmd_param("ir_code", "")
+        # ir_code = _get_cmd_param("ir_code", "")
 
         try:
             match cmd_id:
@@ -132,12 +132,14 @@ class YamahaMediaPlayer(MediaPlayer):
                     | media_player.Commands.BACK
                     | media_player.Commands.SETTINGS
                 ):
-                    res = await avr.send_command("sendIrCode", ir_code)
+                    # res = await avr.send_command("sendIrCode", ir_code)
+                    pass
                 case media_player.Commands.SELECT_SOURCE:
                     await avr.send_command("setInput", zone, params.get("source"))
                 # --- simple commands ---
                 case SimpleCommands.EXIT.value:
-                    res = await avr.send_command("sendIrCode", ir_code)
+                    # res = await avr.send_command("sendIrCode", ir_code)
+                    pass
                 case SimpleCommands.SLEEP.value:  # TODO sleep time
                     res = await avr.send_command("setSleep", zone, 60)
                 case SimpleCommands.HDMI_OUTPUT_1.value:
