@@ -230,60 +230,67 @@ class YamahaAVR:
         """Send a command to the AVR."""
         async with aiohttp.ClientSession() as session:
             avr = AsyncDevice(session, self.address)
+            _LOG.debug(
+                "[%s] Sending command: %s, group: %s, args: %s, kwargs: %s",
+                self.log_id,
+                command,
+                group,
+                args,
+                kwargs,
+            )
             match group:
                 case "system":
                     match command:
                         case "getDeviceInfo":
-                            return await avr.request(System.get_device_info())
+                            res = await avr.request(System.get_device_info())
                         case "getFeatures":
-                            return await avr.request(System.get_features())
+                            res = await avr.request(System.get_features())
                         case "getNetworkStatus":
-                            return await avr.request(System.get_network_status())
+                            res = await avr.request(System.get_network_status())
                         case "getFuncStatus":
-                            return await avr.request(System.get_func_status())
+                            res = await avr.request(System.get_func_status())
                         case "sendIrCode":
                             code = kwargs.get("code", "")
-                            return await avr.request(System.send_ir_code(code))
+                            res = await avr.request(System.send_ir_code(code))
                         case "setHdmiOut1":
-                            return await avr.request(System.set_hdmi_out_1(True))
+                            res = await avr.request(System.set_hdmi_out_1(True))
                         case "setHdmiOut2":
-                            return await avr.request(System.set_hdmi_out_2(True))
+                            res = await avr.request(System.set_hdmi_out_2(True))
                 case "zone":
                     zone = kwargs["zone"]  #  'main', 'zone2', 'zone3', 'zone4'
                     match command:
                         case "getStatus":
-                            return await avr.request(Zone.get_status(zone))
+                            res = await avr.request(Zone.get_status(zone))
                         case "setPower":
                             power = kwargs["power"]  #  'on', 'standby', 'toggle'
-                            return await avr.request(Zone.set_power(zone, power))
+                            res = await avr.request(Zone.set_power(zone, power))
                         case "setSleep":
                             sleep = kwargs["sleep"]  # 0,30,60,90,120
-                            return await avr.request(Zone.set_sleep(zone, sleep))
+                            res = await avr.request(Zone.set_sleep(zone, sleep))
                         case "setVolume":
                             # TODO add volume step to setup flow
                             volume = kwargs["volume"]  # up, down, level
                             step = self._device.volume_step
-                            return await avr.request(
-                                Zone.set_volume(zone, volume, step)
-                            )
+                            res = await avr.request(Zone.set_volume(zone, volume, step))
                         case "setMute":
                             mute = kwargs["mute"]  # True, False
-                            return await avr.request(Zone.set_mute(zone, mute))
+                            res = await avr.request(Zone.set_mute(zone, mute))
                         case "setInput":
                             # TODO check what mode is
                             # TODO add input source to setup flow
                             input_source = kwargs["input_source"]
-                            return await avr.request(
+                            res = await avr.request(
                                 Zone.set_input(
                                     zone, input_source, mode="autoplay_disabled"
                                 )
                             )
                         case "setDirect":
-                            return await avr.request(Zone.set_direct(zone, True))
+                            res = await avr.request(Zone.set_direct(zone, True))
                         case "setPureDirect":
-                            return await avr.request(Zone.set_pure_direct(zone, True))
+                            res = await avr.request(Zone.set_pure_direct(zone, True))
                         case "setClearVoice":
-                            return await avr.request(Zone.set_clear_voice(zone, True))
+                            res = await avr.request(Zone.set_clear_voice(zone, True))
+        return res
 
     async def _poll_worker(self) -> None:
         await asyncio.sleep(1)

@@ -97,17 +97,30 @@ class YamahaMediaPlayer(MediaPlayer):
         try:
             match cmd_id:
                 case media_player.Commands.ON:
-                    res = await avr.send_command("setPower", zone, "on")
+                    _LOG.debug("Sending ON command to AVR")
+                    res = await avr.send_command(
+                        "setPower", group="zone", zone="main", power="on"
+                    )
                 case media_player.Commands.OFF:
-                    res = await avr.send_command("setPower", zone, "off")
+                    res = await avr.send_command(
+                        "setPower", group="zone", zone="main", power="off"
+                    )
                 case media_player.Commands.TOGGLE:
-                    res = await avr.send_command("setPower", zone, "toggle")
+                    res = await avr.send_command(
+                        "setPower", group="zone", zone="main", power="toggle"
+                    )
                 case media_player.Commands.VOLUME_UP:
-                    res = await avr.send_command("setVolume", zone, "up")
+                    res = await avr.send_command(
+                        "setVolume", group="zone", zone="main", volume="up"
+                    )
                 case media_player.Commands.VOLUME_DOWN:
-                    res = await avr.send_command("setVolume", zone, "down")
+                    res = await avr.send_command(
+                        "setVolume", group="zone", zone="main", volume="down"
+                    )
                 case media_player.Commands.MUTE_TOGGLE:  # TODO mute status
-                    res = await avr.send_command("setMute", zone, True)
+                    res = await avr.send_command(
+                        "setMute", group="zone", zone="main", mute=True
+                    )
                 case (
                     media_player.Commands.CURSOR_UP
                     | media_player.Commands.CURSOR_DOWN
