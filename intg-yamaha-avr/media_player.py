@@ -12,7 +12,7 @@ import ucapi.api as uc
 
 import avr
 from config import YamahaDevice, create_entity_id
-from const import SimpleCommands
+from const import SimpleCommands, IrCodes
 from ucapi import MediaPlayer, media_player, EntityTypes
 from ucapi.media_player import DeviceClasses, Attributes
 
@@ -56,12 +56,17 @@ class YamahaMediaPlayer(MediaPlayer):
                 Attributes.STATE: device.state,
                 Attributes.SOURCE: device.source if device.source else "",
                 Attributes.SOURCE_LIST: device.source_list,
+                Attributes.MUTED: device.muted,
+                Attributes.SOUND_MODE: device.sound_mode if device.sound_mode else "",
             },
             device_class=DeviceClasses.TV,
             options={
                 media_player.Options.SIMPLE_COMMANDS: [
-                    SimpleCommands.EXIT.value,
-                    SimpleCommands.SLEEP.value,
+                    SimpleCommands.SLEEP_OFF.value,
+                    SimpleCommands.SLEEP_30.value,
+                    SimpleCommands.SLEEP_60.value,
+                    SimpleCommands.SLEEP_90.value,
+                    SimpleCommands.SLEEP_120.value,
                     SimpleCommands.HDMI_OUTPUT_1.value,
                     SimpleCommands.HDMI_OUTPUT_2.value,
                     SimpleCommands.SOUND_MODE_DIRECT.value,
@@ -90,36 +95,42 @@ class YamahaMediaPlayer(MediaPlayer):
             "Got %s command request: %s %s", entity.id, cmd_id, params if params else ""
         )
 
-        avr = self._device
-        zone = self._device.zone
-        # ir_code = _get_cmd_param("ir_code", "")
+        yamaha = self._device
 
         try:
             match cmd_id:
                 case media_player.Commands.ON:
                     _LOG.debug("Sending ON command to AVR")
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="on"
                     )
                 case media_player.Commands.OFF:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="standby"
                     )
                 case media_player.Commands.TOGGLE:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="toggle"
                     )
                 case media_player.Commands.VOLUME_UP:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="up"
                     )
                 case media_player.Commands.VOLUME_DOWN:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="down"
                     )
-                case media_player.Commands.MUTE_TOGGLE:  # TODO mute status
-                    res = await avr.send_command(
+                case media_player.Commands.MUTE:
+                    res = await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute=True
+                    )
+                case media_player.Commands.UNMUTE:
+                    res = await yamaha.send_command(
+                        "setMute", group="zone", zone="main", mute=False
+                    )
+                case media_player.Commands.MUTE_TOGGLE:
+                    res = await yamaha.send_command(
+                        "setMute", group="zone", zone="main", mute="toggle"
                     )
                 case (
                     media_player.Commands.CURSOR_UP
@@ -138,44 +149,64 @@ class YamahaMediaPlayer(MediaPlayer):
                     | media_player.Commands.DIGIT_7
                     | media_player.Commands.DIGIT_8
                     | media_player.Commands.DIGIT_9
-                    | media_player.Commands.HOME
-                    | media_player.Commands.MENU
                     | media_player.Commands.INFO
-                    | media_player.Commands.GUIDE
-                    | media_player.Commands.BACK
                     | media_player.Commands.SETTINGS
                 ):
-                    # res = await avr.send_command("sendIrCode", ir_code)
-                    pass
+                    ir_code = IrCodes[cmd_id.upper()].value
+                    _LOG.debug("Sending IR code %s for command %s", ir_code, cmd_id)
+                    res = await yamaha.send_command(
+                        "sendIrCode", ir_code=ir_code, group="system"
+                    )
                 case media_player.Commands.SELECT_SOURCE:
-                    await avr.send_command(
+                    await yamaha.send_command(
                         "setInput",
                         group="zone",
                         zone="main",
                         input_source=params.get("source"),
                     )
                 # --- simple commands ---
-                case SimpleCommands.EXIT.value:
-                    # res = await avr.send_command("sendIrCode", ir_code)
-                    pass
-                case SimpleCommands.SLEEP.value:  # TODO sleep time
-                    res = await avr.send_command(
+                case SimpleCommands.NUMBER_ENTER.value:
+                    res = await yamaha.send_command(
+                        "sendIrCode", IrCode=IrCodes.NUMBER_ENTER.value, group="system"
+                    )
+                case SimpleCommands.SLEEP_OFF.value:
+                    res = await yamaha.send_command(
+                        "setSleep", group="zone", zone="main", sleep="0"
+                    )
+                case SimpleCommands.SLEEP_30.value:
+                    res = await yamaha.send_command(
+                        "setSleep", group="zone", zone="main", sleep="30"
+                    )
+                case SimpleCommands.SLEEP_60.value:
+                    res = await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="60"
                     )
+                case SimpleCommands.SLEEP_90.value:
+                    res = await yamaha.send_command(
+                        "setSleep", group="zone", zone="main", sleep="90"
+                    )
+                case SimpleCommands.SLEEP_120.value:
+                    res = await yamaha.send_command(
+                        "setSleep", group="zone", zone="main", sleep="120"
+                    )
                 case SimpleCommands.HDMI_OUTPUT_1.value:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setHdmiOut1", group="zone", zone="main"
                     )
                 case SimpleCommands.HDMI_OUTPUT_2.value:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setHdmiOut2", group="zone", zone="main"
                     )
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
-                    res = await avr.send_command("setDirect", group="zone", zone="main")
+                    res = await yamaha.send_command(
+                        "setDirect", group="zone", zone="main"
+                    )
                 case SimpleCommands.SOUND_MODE_PURE.value:
-                    res = await avr.send_command("setPure", group="zone", zone="main")
+                    res = await yamaha.send_command(
+                        "setPure", group="zone", zone="main"
+                    )
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
-                    res = await avr.send_command(
+                    res = await yamaha.send_command(
                         "setClearVoice", group="zone", zone="main"
                     )
 

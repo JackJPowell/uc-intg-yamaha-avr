@@ -174,16 +174,6 @@ class YamahaRemote(Remote):
                         await client.launch_app(app_name=params.get("source"))
                     case media_player.Commands.SETTINGS:
                         await client.send_key("KEY_TOOLS")
-                    case SimpleCommands.EXIT:
-                        await client.send_key("KEY_EXIT")
-                    case SimpleCommands.HDMI_1:
-                        await client.send_key("KEY_HDMI1")
-                    case SimpleCommands.HDMI_2:
-                        await client.send_key("KEY_HDMI2")
-                    case SimpleCommands.HDMI_3:
-                        await client.send_key("KEY_HDMI3")
-                    case SimpleCommands.HDMI_4:
-                        await client.send_key("KEY_HDMI4")
                 res = StatusCodes.OK
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
                 commands = params.get("sequence", [])
@@ -205,8 +195,11 @@ class YamahaRemote(Remote):
 
 
 YAMAHA_REMOTE_SIMPLE_COMMANDS = [
-    SimpleCommands.EXIT.value,
-    SimpleCommands.SLEEP.value,
+    SimpleCommands.SLEEP_OFF.value,
+    SimpleCommands.SLEEP_30.value,
+    SimpleCommands.SLEEP_60.value,
+    SimpleCommands.SLEEP_90.value,
+    SimpleCommands.SLEEP_120.value,
     SimpleCommands.HDMI_OUTPUT_1.value,
     SimpleCommands.HDMI_OUTPUT_2.value,
     SimpleCommands.SOUND_MODE_DIRECT.value,
@@ -380,46 +373,6 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "text": "YELLOW",
                 "location": {"x": 2, "y": 3},
                 "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.HDMI_1, "repeat": 1},
-                },
-                "text": "HDMI 1",
-                "location": {"x": 0, "y": 4},
-                "size": {"height": 1, "width": 1},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.HDMI_2, "repeat": 1},
-                },
-                "text": "HDMI 2",
-                "location": {"x": 1, "y": 4},
-                "size": {"height": 1, "width": 1},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.HDMI_3, "repeat": 1},
-                },
-                "text": "HDMI 3",
-                "location": {"x": 2, "y": 4},
-                "size": {"height": 1, "width": 1},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.HDMI_4, "repeat": 1},
-                },
-                "text": "HDMI 4",
-                "location": {"x": 3, "y": 4},
-                "size": {"height": 1, "width": 1},
                 "type": "text",
             },
             {

@@ -45,13 +45,13 @@ _user_input_manual = RequestUserInput(
         {
             "id": "info",
             "label": {
-                "en": "Setup your Yamaha AVR",
+                "en": "Setup Information",
             },
             "field": {
                 "label": {
                     "value": {
                         "en": (
-                            "Please supply the IP address or Hostname of your Yamaha AVR."
+                            "Please supply the following settings for your Yamaha AVR."
                         ),
                     }
                 }
@@ -62,6 +62,13 @@ _user_input_manual = RequestUserInput(
             "id": "ip",
             "label": {
                 "en": "IP Address",
+            },
+        },
+        {
+            "field": {"text": {"value": "1"}},
+            "id": "step",
+            "label": {
+                "en": "Volume Step",
             },
         },
     ],
@@ -333,6 +340,7 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
     :return: the setup action on how to continue
     """
     ip = msg.input_values["ip"]
+    step = msg.input_values.get("step", "1")
     data = {}
     if ip is not None and ip != "":
         _LOG.debug("Connecting to Yamaha AVR at %s", ip)
@@ -340,8 +348,18 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         dev = Device(ip)
         res = dev.request(System.get_device_info())
         data = res.json()
+        res = dev.request(System.get_features())
+        features = res.json()
+        input_list = next(
+            (
+                zone.get("input_list", [])
+                for zone in features["zones"]
+                if zone["id"] == "main"
+            ),
+            [],
+        )
 
-        _LOG.info("Yamaha AVR info: %s", res)
+        _LOG.info("Yamaha AVR info: %s", input_list)
 
     # if we are adding a new device: make sure it's not already configured
     if _cfg_add_device and config.devices.contains(data.get("serial_number")):
@@ -354,6 +372,8 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         identifier=data.get("serial_number"),
         name=data.get("model_name"),
         address=ip,
+        volume_step=step,
+        input_list=input_list,
     )
 
     config.devices.add_or_update(device)

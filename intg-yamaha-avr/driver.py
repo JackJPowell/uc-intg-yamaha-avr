@@ -70,7 +70,7 @@ async def on_r2_exit_standby() -> None:
     """
     Exit standby notification from Remote Two.
 
-    Connect all ATV instances.
+    Connect all AVR instances.
     """
     _LOG.debug("Exit standby event: connecting device(s)")
     for device in _configured_devices.values():
@@ -124,7 +124,6 @@ async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
         device_id = device_from_entity_id(entity_id)
         if device_id is None:
             continue
-        # await _configured_devices[device_id].disconnect(continue_polling=False)
         _configured_devices[device_id].events.remove_all_listeners()
 
 
@@ -216,6 +215,8 @@ def _device_state_to_media_player_state(
             state = media_player.States.ON
         case avr.PowerState.OFF:
             state = media_player.States.OFF
+        case avr.PowerState.STANDBY:
+            state = media_player.States.STANDBY
         case _:
             state = media_player.States.UNKNOWN
     return state
@@ -273,9 +274,21 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
             if "volume" in update:
                 attributes[media_player.Attributes.VOLUME] = update["volume"]
 
+            if "muted" in update:
+                attributes[media_player.Attributes.MUTED] = update["muted"]
+
+            if "sound_mode" in update:
+                attributes[media_player.Attributes.SOUND_MODE] = update["sound_mode"]
+
             if media_player.Attributes.STATE in attributes:
-                if attributes[media_player.Attributes.STATE] == media_player.States.OFF:
+                if attributes[media_player.Attributes.STATE] in [
+                    media_player.States.OFF,
+                    media_player.States.STANDBY,
+                ]:
                     attributes[media_player.Attributes.SOURCE] = ""
+                    attributes[media_player.Attributes.VOLUME] = ""
+                    attributes[media_player.Attributes.MUTED] = False
+                    attributes[media_player.Attributes.SOUND_MODE] = ""
 
         if attributes:
             if api.configured_entities.contains(identifier):

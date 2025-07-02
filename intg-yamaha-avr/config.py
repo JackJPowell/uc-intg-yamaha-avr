@@ -44,6 +44,10 @@ class YamahaDevice:
     """Friendly name of the device."""
     address: str
     """IP Address of device"""
+    input_list: list[str] | None = None
+    """List of inputs for the device, if available."""
+    volume_step: str = "1"
+    """Volume step for the device, default is 1. Can be set to '0.5' or '2'."""
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -115,6 +119,8 @@ class Devices:
             if item.identifier == device.identifier:
                 item.address = device.address
                 item.name = device.name
+                item.input_list = device.input_list
+                item.volume_step = device.volume_step
                 return self.store()
         return False
 
@@ -173,6 +179,8 @@ class Devices:
                     item.get("identifier"),
                     item.get("name", ""),
                     item.get("address"),
+                    item.get("input_list", []),
+                    item.get("volume_step", "1"),
                 )
                 self._config.append(device)
             return True

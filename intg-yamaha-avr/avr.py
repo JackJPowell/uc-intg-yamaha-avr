@@ -65,12 +65,14 @@ class YamahaAVR:
         self._polling = None
         self._poll_interval: int = 10
         self._state: PowerState | None = None
-        self._source_list: dict[str, str] = {}
+        self._source_list: list[str] = self._device.input_list or []
         self._volume_level: float = 0.0
         self._end_of_power_off: datetime | None = None
         self._end_of_power_on: datetime | None = None
         self._active_source: str = ""
         self._zone: str = "main"
+        self._muted: bool = False
+        self._sound_mode: str | None = None
 
     @property
     def device_config(self) -> YamahaDevice:
@@ -109,7 +111,7 @@ class YamahaAVR:
         """Return the device state."""
         if self.is_on:
             return PowerState.ON
-        return PowerState.OFF
+        return PowerState.STANDBY
 
     @property
     def source_list(self) -> list[str]:
@@ -127,6 +129,16 @@ class YamahaAVR:
         return self._zone
 
     @property
+    def muted(self) -> bool:
+        """Return whether the device is muted."""
+        return self._muted
+
+    @property
+    def sound_mode(self) -> str | None:
+        """Return the current sound mode."""
+        return self._sound_mode if self._sound_mode else None
+
+    @property
     def attributes(self) -> dict[str, any]:
         """Return the device attributes."""
         updated_data = {
@@ -139,7 +151,7 @@ class YamahaAVR:
         return updated_data
 
     async def connect(self) -> None:
-        """Establish connection to TV."""
+        """Establish connection to the AVR."""
         if self._is_on:
             return
 
@@ -183,7 +195,11 @@ class YamahaAVR:
             self.log_id,
             self.address,
         )
-        # TODO Validate the device is alive
+        async with aiohttp.ClientSession() as session:
+            avr = AsyncDevice(session, self.address)
+            res = await avr.request(Zone.get_status(self.zone))
+            status = await res.json()
+            self._is_on = status.get("power", "standby") == "on"
 
     async def _start_polling(self) -> None:
         if not self._polling:
@@ -211,14 +227,31 @@ class YamahaAVR:
         _LOG.debug("[%s] Updating app list", self.log_id)
         update = {}
 
+        if self._source_list is None or len(self._source_list) == 0:
+            _LOG.error("[%s] Unable to retrieve app list. Using default", self.log_id)
+            self._source_list = [
+                "tuner",
+                "hdmi1",
+                "hdmi2",
+                "hdmi3",
+                "hdmi4",
+                "hdmi5",
+                "hdmi6",
+                "hdmi7",
+                "av1",
+                "av2",
+                "av3",
+                "tv",
+                "audio1",
+                "audio2",
+                "audio3",
+                "audio4",
+                "phono",
+            ]
+
         try:
-            update["source_list"] = ["TV", "HDMI", "HDMI1", "HDMI2", "HDMI3", "HDMI4"]
+            update["source_list"] = self._source_list
 
-            if self._source_list is None or len(self._source_list) == 0:
-                _LOG.error("[%s] Unable to retrieve app list.", self.log_id)
-
-            for app in self._source_list:
-                update["source_list"].append(app)
         except Exception:  # pylint: disable=broad-exception-caught
             _LOG.exception("[%s] App list: protocol error", self.log_id)
 
@@ -228,6 +261,7 @@ class YamahaAVR:
         self, command: str, group: str, *args: Any, **kwargs: Any
     ) -> str:
         """Send a command to the AVR."""
+        update = {}
         async with aiohttp.ClientSession() as session:
             avr = AsyncDevice(session, self.address)
             _LOG.debug(
@@ -264,34 +298,55 @@ class YamahaAVR:
                         case "setPower":
                             power = kwargs["power"]  #  'on', 'standby', 'toggle'
                             res = await avr.request(Zone.set_power(zone, power))
+
+                            if power == "toggle":
+                                res = await avr.request(Zone.get_status(zone))
+                                power = await res.json()["power"]
+
+                            self._is_on = power == "on"
+                            match power:
+                                case "on":
+                                    update["state"] = PowerState.ON
+                                case "standby":
+                                    update["state"] = PowerState.STANDBY
                         case "setSleep":
                             sleep = kwargs["sleep"]  # 0,30,60,90,120
                             res = await avr.request(Zone.set_sleep(zone, sleep))
                         case "setVolume":
-                            # TODO add volume step to setup flow
                             volume = kwargs["volume"]  # up, down, level
-                            # step = self._device.volume_step
-                            step = "1"
+                            step = 1
                             res = await avr.request(Zone.set_volume(zone, volume, step))
                         case "setMute":
                             mute = kwargs["mute"]  # True, False
+                            if mute == "toggle":
+                                # Toggle mute state
+                                current_status = await avr.request(
+                                    Zone.get_status(zone)
+                                )
+                                mute = not await current_status.json()["mute"]
                             res = await avr.request(Zone.set_mute(zone, mute))
+                            self._muted = mute
+                            update["muted"] = mute
                         case "setInput":
-                            # TODO check what mode is
-                            # TODO add input source to setup flow
                             input_source = kwargs["input_source"]
                             input_source = input_source.lower()
-                            res = await avr.request(
-                                Zone.set_input(
-                                    zone, input_source, mode="autoplay_disabled"
-                                )
-                            )
+                            res = await avr.request(Zone.set_input(zone, input_source))
+                            self._active_source = input_source
+                            update["source"] = input_source
                         case "setDirect":
                             res = await avr.request(Zone.set_direct(zone, True))
+                            self._sound_mode = "Direct"
+                            update["sound_mode"] = "Direct"
                         case "setPureDirect":
                             res = await avr.request(Zone.set_pure_direct(zone, True))
+                            self._sound_mode = "Pure Direct"
+                            update["sound_mode"] = "Pure Direct"
                         case "setClearVoice":
                             res = await avr.request(Zone.set_clear_voice(zone, True))
+                            self._sound_mode = "Clear Voice"
+                            update["sound_mode"] = "Clear Voice"
+
+        self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
         return res
 
     async def _poll_worker(self) -> None:
@@ -305,6 +360,12 @@ class YamahaAVR:
         update = {}
         async with aiohttp.ClientSession() as session:
             avr = AsyncDevice(session, self.address)
-            return await avr.request(Zone.get_status(self.zone))
+            res = await avr.request(Zone.get_status(self.zone))
+            status = await res.json()
+            self._is_on = status.get("power", "standby") == "on"
 
+        if self._is_on:
+            update["state"] = PowerState.ON
+        else:
+            update["state"] = PowerState.STANDBY
         self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
