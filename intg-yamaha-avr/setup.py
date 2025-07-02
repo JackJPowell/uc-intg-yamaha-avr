@@ -353,7 +353,7 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         input_list = next(
             (
                 zone.get("input_list", [])
-                for zone in features["zones"]
+                for zone in features["zone"]
                 if zone["id"] == "main"
             ),
             [],
