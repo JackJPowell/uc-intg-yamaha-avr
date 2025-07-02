@@ -330,7 +330,9 @@ class YamahaAVR:
                         case "setInput":
                             input_source = kwargs["input_source"]
                             input_source = input_source.lower()
-                            res = await avr.request(Zone.set_input(zone, input_source))
+                            res = await avr.request(
+                                Zone.set_input(zone, input_source, mode=None)
+                            )
                             self._active_source = input_source
                             update["source"] = input_source
                         case "setDirect":
