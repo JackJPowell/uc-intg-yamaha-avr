@@ -314,14 +314,14 @@ class YamahaAVR:
                             res = await avr.request(Zone.set_sleep(zone, sleep))
                         case "setVolume":
                             volume = kwargs["volume"]  # up, down, level
-                            step = self.device_config.volume_step | 1
-                            res = await avr.request(Zone.set_volume(zone, volume, step))
+                            step = int(self.device_config.volume_step) | 1
                             _LOG.debug(
                                 "[%s] Volume command: %s Step: %s",
                                 self.log_id,
                                 volume,
                                 step,
                             )
+                            res = await avr.request(Zone.set_volume(zone, volume, step))
                         case "setMute":
                             mute = kwargs["mute"]  # True, False
                             if mute == "toggle":
