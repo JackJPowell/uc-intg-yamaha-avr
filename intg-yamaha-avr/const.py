@@ -23,12 +23,12 @@ class SimpleCommands(str, Enum):
 class IrCodes(StrEnum):
     """IR codes for the Yamaha AVR."""
 
-    CURSOR_DOWN = "0x5EA139C6"
-    CURSOR_LEFT = "0x5EA1F906"
-    CURSOR_RIGHT = "0x5EA17986"
-    CURSOR_UP = "0x5EA1B946"
-    CURSOR_ENTER = "0x5EA17B84"
-    BACK = "0x5EA155AA"
+    CURSOR_DOWN = "5EA139C6"
+    CURSOR_LEFT = "5EA1F906"
+    CURSOR_RIGHT = "5EA17986"
+    CURSOR_UP = "5EA1B946"
+    CURSOR_ENTER = "5EA17B84"
+    BACK = "5EA155AA"
     DIGIT_0 = "FE805AA5"
     DIGIT_1 = "FE808A75"
     DIGIT_2 = "FE804AB5"
@@ -39,11 +39,10 @@ class IrCodes(StrEnum):
     DIGIT_7 = "FE80EA15"
     DIGIT_8 = "FE801AE5"
     DIGIT_9 = "FE809A65"
-    INFO = "0x5EA1E41A"
-    SETTINGS = "0x5EA1D628"
-    MENU = "0x5EA1D628"
-    HOME = "0x5EA155AA"
-
+    INFO = "5EA1E41A"
+    SETTINGS = "5EA1D628"
+    MENU = "5EA1D628"
+    HOME = "5EA155AA"
     NUMBER_ENTER = "FE803AC5"
 
 

@@ -319,7 +319,8 @@ class YamahaAVR:
 
                                 if power == "toggle":
                                     res = await avr.request(Zone.get_status(zone))
-                                    power = await res.json()["power"]
+                                    status = await res.json()
+                                    power = status["power"]
 
                                 match power:
                                     case "on":
