@@ -22,7 +22,6 @@ from ucapi import (
     SetupError,
     UserDataResponse,
 )
-from discover import discovery
 
 _LOG = logging.getLogger(__name__)
 
@@ -342,24 +341,35 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
     ip = msg.input_values["ip"]
     step = msg.input_values.get("step", "1")
     data = {}
-    if ip is not None and ip != "":
-        _LOG.debug("Connecting to Yamaha AVR at %s", ip)
 
-        dev = Device(ip)
-        res = dev.request(System.get_device_info())
-        data = res.json()
-        res = dev.request(System.get_features())
-        features = res.json()
-        input_list = next(
-            (
-                zone.get("input_list", [])
-                for zone in features["zone"]
-                if zone["id"] == "main"
-            ),
-            [],
-        )
+    if ip is None or ip == "":
+        return _user_input_manual
 
-        _LOG.info("Yamaha AVR info: %s", input_list)
+    _LOG.debug("Connecting to Yamaha AVR at %s", ip)
+
+    dev = Device(ip)
+    res = dev.request(System.get_device_info())
+    data = res.json()
+    res = dev.request(System.get_features())
+    features = res.json()
+    input_list = next(
+        (
+            zone.get("input_list", [])
+            for zone in features["zone"]
+            if zone["id"] == "main"
+        ),
+        [],
+    )
+    sound_modes = next(
+        (
+            zone.get("sound_mode_list", [])
+            for zone in features["zone"]
+            if zone["id"] == "main"
+        ),
+        [],
+    )
+
+    _LOG.info("Yamaha AVR info: %s", input_list)
 
     # if we are adding a new device: make sure it's not already configured
     if _cfg_add_device and config.devices.contains(data.get("serial_number")):
@@ -374,6 +384,7 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         address=ip,
         volume_step=step,
         input_list=input_list,
+        sound_modes=sound_modes,
     )
 
     config.devices.add_or_update(device)

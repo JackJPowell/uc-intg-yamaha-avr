@@ -93,14 +93,10 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
             if device_id in _configured_devices:
                 device = _configured_devices[device_id]
                 _LOG.info("Add '%s' to configured devices and connect", device.name)
-                if device.is_on is None:
+                if device.state is None:
                     state = media_player.States.UNAVAILABLE
                 else:
-                    state = (
-                        media_player.States.ON
-                        if device.is_on
-                        else media_player.States.OFF
-                    )
+                    state = _device_state_to_media_player_state(device.state)
                 api.configured_entities.update_attributes(
                     entity_id, {media_player.Attributes.STATE: state}
                 )
@@ -251,13 +247,6 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                 attributes[ucapi.media_player.Attributes.STATE] = state
 
         if isinstance(configured_entity, YamahaMediaPlayer):
-            if (
-                "source" in update
-                and target_entity.attributes.get(media_player.Attributes.SOURCE, "")
-                != update["source"]
-            ):
-                attributes[media_player.Attributes.SOURCE] = update["source"]
-
             if "source_list" in update:
                 if media_player.Attributes.SOURCE_LIST in target_entity.attributes:
                     if len(
@@ -271,6 +260,26 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                         "source_list"
                     ]
 
+            if "sound_mode_list" in update:
+                if media_player.Attributes.SOUND_MODE_LIST in target_entity.attributes:
+                    if len(
+                        target_entity.attributes[
+                            media_player.Attributes.SOUND_MODE_LIST
+                        ]
+                    ) != len(update["sound_mode_list"]):
+                        attributes[media_player.Attributes.SOUND_MODE_LIST] = update[
+                            "sound_mode_list"
+                        ]
+                else:
+                    attributes[media_player.Attributes.SOUND_MODE_LIST] = update[
+                        "sound_mode_list"
+                    ]
+            if (
+                "source" in update
+                and target_entity.attributes.get(media_player.Attributes.SOURCE, "")
+                != update["source"]
+            ):
+                attributes[media_player.Attributes.SOURCE] = update["source"]
             if "volume" in update:
                 attributes[media_player.Attributes.VOLUME] = update["volume"]
 

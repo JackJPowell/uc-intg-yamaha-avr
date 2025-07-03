@@ -16,9 +16,7 @@ from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
 from ucapi.ui import DeviceButtonMapping, Buttons
 import avr
-from const import (
-    SimpleCommands,
-)
+from const import SimpleCommands, IrCodes
 
 _LOG = logging.getLogger(__name__)
 
@@ -27,6 +25,7 @@ YAMAHA_REMOTE_STATE_MAPPING = {
     MediaStates.UNAVAILABLE: RemoteStates.UNAVAILABLE,
     MediaStates.OFF: RemoteStates.OFF,
     MediaStates.ON: RemoteStates.ON,
+    MediaStates.STANDBY: RemoteStates.OFF,
 }
 
 
@@ -103,78 +102,148 @@ class YamahaRemote(Remote):
         if command == "":
             command = f"remote.{cmd_id}"
 
-        client = self._device
+        _LOG.info("Got command request: %s %s", cmd_id, params if params else "")
+
+        yamaha = self._device
         res = None
         try:
             if command == "remote.on":
-                await client.toggle_power(True)
+                _LOG.debug("Sending ON command to AVR")
+                res = await yamaha.send_command(
+                    "setPower", group="zone", zone="main", power="on"
+                )
             elif command == "remote.off":
-                await client.toggle_power(False)
+                res = await yamaha.send_command(
+                    "setPower", group="zone", zone="main", power="standby"
+                )
             elif command == "remote.toggle":
-                await client.toggle_power()
+                res = await yamaha.send_command(
+                    "setPower", group="zone", zone="main", power="toggle"
+                )
             elif cmd_id == Commands.SEND_CMD:
                 match command:
                     case media_player.Commands.ON:
-                        await client.toggle_power(True)
+                        _LOG.debug("Sending ON command to AVR")
+                        res = await yamaha.send_command(
+                            "setPower", group="zone", zone="main", power="on"
+                        )
                     case media_player.Commands.OFF:
-                        await client.toggle_power(False)
+                        res = await yamaha.send_command(
+                            "setPower", group="zone", zone="main", power="standby"
+                        )
                     case media_player.Commands.TOGGLE:
-                        await client.toggle_power()
+                        res = await yamaha.send_command(
+                            "setPower", group="zone", zone="main", power="toggle"
+                        )
                     case media_player.Commands.VOLUME_UP:
-                        await client.send_key("KEY_VOLUP")
+                        res = await yamaha.send_command(
+                            "setVolume", group="zone", zone="main", volume="up"
+                        )
                     case media_player.Commands.VOLUME_DOWN:
-                        await client.send_key("KEY_VOLDOWN")
+                        res = await yamaha.send_command(
+                            "setVolume", group="zone", zone="main", volume="down"
+                        )
+                    case media_player.Commands.MUTE:
+                        res = await yamaha.send_command(
+                            "setMute", group="zone", zone="main", mute=True
+                        )
+                    case media_player.Commands.UNMUTE:
+                        res = await yamaha.send_command(
+                            "setMute", group="zone", zone="main", mute=False
+                        )
                     case media_player.Commands.MUTE_TOGGLE:
-                        await client.send_key("KEY_MUTE")
-                    case media_player.Commands.CHANNEL_DOWN:
-                        await client.send_key("KEY_CHDOWN")
-                    case media_player.Commands.CHANNEL_UP:
-                        await client.send_key("KEY_CHUP")
-                    case media_player.Commands.CURSOR_UP:
-                        await client.send_key("KEY_UP")
-                    case media_player.Commands.CURSOR_DOWN:
-                        await client.send_key("KEY_DOWN")
-                    case media_player.Commands.CURSOR_LEFT:
-                        await client.send_key("KEY_LEFT")
-                    case media_player.Commands.CURSOR_RIGHT:
-                        await client.send_key("KEY_RIGHT")
-                    case media_player.Commands.CURSOR_ENTER:
-                        await client.send_key("KEY_ENTER")
-                    case media_player.Commands.DIGIT_0:
-                        await client.send_key("KEY_0")
-                    case media_player.Commands.DIGIT_1:
-                        await client.send_key("KEY_1")
-                    case media_player.Commands.DIGIT_2:
-                        await client.send_key("KEY_2")
-                    case media_player.Commands.DIGIT_3:
-                        await client.send_key("KEY_3")
-                    case media_player.Commands.DIGIT_4:
-                        await client.send_key("KEY_4")
-                    case media_player.Commands.DIGIT_5:
-                        await client.send_key("KEY_5")
-                    case media_player.Commands.DIGIT_6:
-                        await client.send_key("KEY_6")
-                    case media_player.Commands.DIGIT_7:
-                        await client.send_key("KEY_7")
-                    case media_player.Commands.DIGIT_8:
-                        await client.send_key("KEY_8")
-                    case media_player.Commands.DIGIT_9:
-                        await client.send_key("KEY_9")
-                    case media_player.Commands.HOME:
-                        await client.send_key("KEY_HOME")
-                    case media_player.Commands.MENU:
-                        await client.send_key("KEY_MENU")
-                    case media_player.Commands.INFO:
-                        await client.send_key("KEY_INFO")
-                    case media_player.Commands.GUIDE:
-                        await client.send_key("KEY_GUIDE")
-                    case media_player.Commands.BACK:
-                        await client.send_key("KEY_RETURN")
+                        res = await yamaha.send_command(
+                            "setMute", group="zone", zone="main", mute="toggle"
+                        )
+                    case (
+                        media_player.Commands.CURSOR_UP
+                        | media_player.Commands.CURSOR_DOWN
+                        | media_player.Commands.CURSOR_LEFT
+                        | media_player.Commands.CURSOR_RIGHT
+                        | media_player.Commands.CURSOR_ENTER
+                        | media_player.Commands.BACK
+                        | media_player.Commands.DIGIT_0
+                        | media_player.Commands.DIGIT_1
+                        | media_player.Commands.DIGIT_2
+                        | media_player.Commands.DIGIT_3
+                        | media_player.Commands.DIGIT_4
+                        | media_player.Commands.DIGIT_5
+                        | media_player.Commands.DIGIT_6
+                        | media_player.Commands.DIGIT_7
+                        | media_player.Commands.DIGIT_8
+                        | media_player.Commands.DIGIT_9
+                        | media_player.Commands.INFO
+                        | media_player.Commands.SETTINGS
+                        | media_player.Commands.HOME
+                        | media_player.Commands.MENU
+                    ):
+                        ir_code = IrCodes[cmd_id.upper()].value
+                        _LOG.debug("Sending IR code %s for command %s", ir_code, cmd_id)
+                        res = await yamaha.send_command(
+                            "sendIrCode", ir_code=ir_code, group="system"
+                        )
                     case media_player.Commands.SELECT_SOURCE:
-                        await client.launch_app(app_name=params.get("source"))
-                    case media_player.Commands.SETTINGS:
-                        await client.send_key("KEY_TOOLS")
-                res = StatusCodes.OK
+                        await yamaha.send_command(
+                            "setInput",
+                            group="zone",
+                            zone="main",
+                            input_source=params.get("source"),
+                        )
+                    case media_player.Commands.SELECT_SOUND_MODE:
+                        await yamaha.send_command(
+                            "setSoundProgram",
+                            group="zone",
+                            zone="main",
+                            sound_mode=params.get("sound_mode"),
+                        )
+                    # --- simple commands ---
+                    case SimpleCommands.NUMBER_ENTER.value:
+                        res = await yamaha.send_command(
+                            "sendIrCode",
+                            IrCode=IrCodes.NUMBER_ENTER.value,
+                            group="system",
+                        )
+                    case SimpleCommands.SLEEP_OFF.value:
+                        res = await yamaha.send_command(
+                            "setSleep", group="zone", zone="main", sleep="0"
+                        )
+                    case SimpleCommands.SLEEP_30.value:
+                        res = await yamaha.send_command(
+                            "setSleep", group="zone", zone="main", sleep="30"
+                        )
+                    case SimpleCommands.SLEEP_60.value:
+                        res = await yamaha.send_command(
+                            "setSleep", group="zone", zone="main", sleep="60"
+                        )
+                    case SimpleCommands.SLEEP_90.value:
+                        res = await yamaha.send_command(
+                            "setSleep", group="zone", zone="main", sleep="90"
+                        )
+                    case SimpleCommands.SLEEP_120.value:
+                        res = await yamaha.send_command(
+                            "setSleep", group="zone", zone="main", sleep="120"
+                        )
+                    case SimpleCommands.HDMI_OUTPUT_1.value:
+                        res = await yamaha.send_command(
+                            "setHdmiOut1", group="zone", zone="main"
+                        )
+                    case SimpleCommands.HDMI_OUTPUT_2.value:
+                        res = await yamaha.send_command(
+                            "setHdmiOut2", group="zone", zone="main"
+                        )
+                    case SimpleCommands.SOUND_MODE_DIRECT.value:
+                        res = await yamaha.send_command(
+                            "setDirect", group="zone", zone="main"
+                        )
+                    case SimpleCommands.SOUND_MODE_PURE.value:
+                        res = await yamaha.send_command(
+                            "setPure", group="zone", zone="main"
+                        )
+                    case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
+                        res = await yamaha.send_command(
+                            "setClearVoice", group="zone", zone="main"
+                        )
+
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
                 commands = params.get("sequence", [])
                 res = StatusCodes.OK
@@ -190,8 +259,9 @@ class YamahaRemote(Remote):
                 await asyncio.sleep(delay)
             return res
         except Exception as ex:  # pylint: disable=broad-except
-            _LOG.error("Error executing command %s: %s", cmd_id, ex)
+            _LOG.error("Error executing remote command %s: %s", cmd_id, ex)
             return ucapi.StatusCodes.OK
+        return ucapi.StatusCodes.OK
 
 
 YAMAHA_REMOTE_SIMPLE_COMMANDS = [
@@ -205,6 +275,7 @@ YAMAHA_REMOTE_SIMPLE_COMMANDS = [
     SimpleCommands.SOUND_MODE_DIRECT.value,
     SimpleCommands.SOUND_MODE_PURE.value,
     SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
+    SimpleCommands.NUMBER_ENTER.value,
 ]
 YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
@@ -212,14 +283,6 @@ YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {
         "button": Buttons.CHANNEL_DOWN,
         "short_press": {"cmd_id": media_player.Commands.CHANNEL_DOWN},
-    },
-    {
-        "button": Buttons.CHANNEL_UP,
-        "short_press": {"cmd_id": media_player.Commands.CHANNEL_UP},
-    },
-    {
-        "button": Buttons.DPAD_UP,
-        "short_press": {"cmd_id": media_player.Commands.CURSOR_UP},
     },
     {
         "button": Buttons.DPAD_DOWN,
@@ -291,127 +354,37 @@ YAMAHA_REMOTE_UI_PAGES = [
             {
                 "command": {
                     "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.MENU, "repeat": 1},
-                },
-                "icon": "uc:menu",
-                "location": {
-                    "x": 0,
-                    "y": 1,
-                },
-                "size": {"height": 1, "width": 1},
-                "type": "icon",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.GUIDE, "repeat": 1},
-                },
-                "icon": "uc:guide",
-                "location": {
-                    "x": 1,
-                    "y": 1,
-                },
-                "size": {"height": 1, "width": 1},
-                "type": "icon",
-            },
-            {
-                "text": "CH List",
-                "location": {
-                    "x": 2,
-                    "y": 1,
-                },
-                "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.FUNCTION_BLUE,
-                        "repeat": 1,
-                    },
-                },
-                "text": "YELLOW",
-                "location": {"x": 0, "y": 2},
-                "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.FUNCTION_GREEN,
-                        "repeat": 1,
-                    },
-                },
-                "text": "GREEN",
-                "location": {"x": 2, "y": 2},
-                "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.FUNCTION_RED,
-                        "repeat": 1,
-                    },
-                },
-                "text": "RED",
-                "location": {"x": 0, "y": 3},
-                "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.FUNCTION_YELLOW,
-                        "repeat": 1,
-                    },
-                },
-                "text": "YELLOW",
-                "location": {"x": 2, "y": 3},
-                "size": {"height": 1, "width": 2},
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.CHANNEL_UP,
-                        "repeat": 1,
-                    },
-                },
-                "icon": "uc:up-arrow",
-                "location": {"x": 3, "y": 5},
-                "size": {"height": 1, "width": 1},
-                "type": "icon",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.CHANNEL_DOWN,
-                        "repeat": 1,
-                    },
-                },
-                "icon": "uc:down-arrow",
-                "location": {"x": 3, "y": 6},
-                "size": {"height": 1, "width": 1},
-                "type": "icon",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
                     "params": {
                         "command": media_player.Commands.MUTE_TOGGLE,
                         "repeat": 1,
                     },
                 },
                 "icon": "uc:mute",
-                "location": {"x": 1, "y": 5},
+                "location": {"x": 2, "y": 1},
                 "size": {"height": 1, "width": 2},
+                "type": "icon",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SLEEP_OFF,
+                        "repeat": 1,
+                    },
+                },
+                "icon": "uc:coffee-pot",
+                "location": {"x": 3, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "type": "icon",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": media_player.Commands.VOLUME_UP, "repeat": 1},
+                },
+                "icon": "uc:plus",
+                "location": {"x": 0, "y": 1},
+                "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
             {
@@ -423,19 +396,126 @@ YAMAHA_REMOTE_UI_PAGES = [
                     },
                 },
                 "icon": "uc:minus",
-                "location": {"x": 0, "y": 6},
+                "location": {"x": 0, "y": 2},
                 "size": {"height": 1, "width": 1},
                 "type": "icon",
             },
             {
                 "command": {
                     "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.VOLUME_UP, "repeat": 1},
+                    "params": {
+                        "command": SimpleCommands.SLEEP_30,
+                        "repeat": 1,
+                    },
                 },
-                "icon": "uc:plus",
-                "location": {"x": 0, "y": 5},
+                "text": "30",
+                "location": {"x": 0, "y": 3},
                 "size": {"height": 1, "width": 1},
-                "type": "icon",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SLEEP_60,
+                        "repeat": 1,
+                    },
+                },
+                "text": "60",
+                "location": {"x": 1, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SLEEP_90,
+                        "repeat": 1,
+                    },
+                },
+                "text": "90",
+                "location": {"x": 2, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SLEEP_120,
+                        "repeat": 1,
+                    },
+                },
+                "text": "120",
+                "location": {"x": 3, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.HDMI_OUTPUT_1,
+                        "repeat": 1,
+                    },
+                },
+                "text": "Output 1",
+                "location": {"x": 0, "y": 4},
+                "size": {"height": 1, "width": 2},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.HDMI_OUTPUT_2,
+                        "repeat": 1,
+                    },
+                },
+                "text": "Output 2",
+                "location": {"x": 2, "y": 4},
+                "size": {"height": 1, "width": 2},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SOUND_MODE_DIRECT,
+                        "repeat": 1,
+                    },
+                },
+                "text": "Direct",
+                "location": {"x": 0, "y": 5},
+                "size": {"height": 1, "width": 2},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SOUND_MODE_PURE,
+                        "repeat": 1,
+                    },
+                },
+                "text": "Pure",
+                "location": {"x": 2, "y": 5},
+                "size": {"height": 1, "width": 2},
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": SimpleCommands.SOUND_MODE_CLEAR_VOICE,
+                        "repeat": 1,
+                    },
+                },
+                "text": "Clear Voice",
+                "location": {"x": 0, "y": 6},
+                "size": {"height": 1, "width": 4},
+                "type": "text",
             },
         ],
     },
@@ -542,6 +622,16 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "location": {"x": 1, "y": 3},
                 "size": {"height": 1, "width": 1},
                 "text": "0",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.NUMBER_ENTER, "repeat": 1},
+                },
+                "location": {"x": 2, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "OK",
                 "type": "text",
             },
         ],

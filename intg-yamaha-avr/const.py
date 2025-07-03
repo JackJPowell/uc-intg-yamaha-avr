@@ -2,7 +2,6 @@
 
 from enum import Enum, IntEnum, StrEnum
 from ucapi.media_player import States as MediaStates
-from ucapi.media_player import Commands as MediaCommands
 
 
 class SimpleCommands(str, Enum):
@@ -42,6 +41,8 @@ class IrCodes(StrEnum):
     DIGIT_9 = "FE809A65"
     INFO = "5EA1E41A"
     SETTINGS = "5EA1D628"
+    MENU = "5EA1D628"
+    HOME = "5EA155AA"
 
     NUMBER_ENTER = "FE803AC5"
 

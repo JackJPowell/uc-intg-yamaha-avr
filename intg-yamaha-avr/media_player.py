@@ -58,6 +58,10 @@ class YamahaMediaPlayer(MediaPlayer):
                 Attributes.SOURCE_LIST: device.source_list,
                 Attributes.MUTED: device.muted,
                 Attributes.SOUND_MODE: device.sound_mode if device.sound_mode else "",
+                Attributes.SOUND_MODE_LIST: device.sound_mode_list
+                if device.sound_mode_list
+                else [],
+                Attributes.VOLUME: device.volume,
             },
             device_class=DeviceClasses.TV,
             options={
@@ -151,6 +155,8 @@ class YamahaMediaPlayer(MediaPlayer):
                     | media_player.Commands.DIGIT_9
                     | media_player.Commands.INFO
                     | media_player.Commands.SETTINGS
+                    | media_player.Commands.HOME
+                    | media_player.Commands.MENU
                 ):
                     ir_code = IrCodes[cmd_id.upper()].value
                     _LOG.debug("Sending IR code %s for command %s", ir_code, cmd_id)
@@ -163,6 +169,13 @@ class YamahaMediaPlayer(MediaPlayer):
                         group="zone",
                         zone="main",
                         input_source=params.get("source"),
+                    )
+                case media_player.Commands.SELECT_SOUND_MODE:
+                    await yamaha.send_command(
+                        "setSoundProgram",
+                        group="zone",
+                        zone="main",
+                        sound_mode=params.get("sound_mode"),
                     )
                 # --- simple commands ---
                 case SimpleCommands.NUMBER_ENTER.value:

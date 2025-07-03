@@ -48,6 +48,8 @@ class YamahaDevice:
     """List of inputs for the device, if available."""
     volume_step: str = "1"
     """Volume step for the device, default is 1. Can be set to '0.5' or '2'."""
+    sound_modes: list[str] | None = None
+    """List of sound modes for the device, if available."""
 
 
 class _EnhancedJSONEncoder(json.JSONEncoder):
@@ -121,6 +123,7 @@ class Devices:
                 item.name = device.name
                 item.input_list = device.input_list
                 item.volume_step = device.volume_step
+                item.sound_modes = device.sound_modes
                 return self.store()
         return False
 
@@ -181,6 +184,7 @@ class Devices:
                     item.get("address"),
                     item.get("input_list", []),
                     item.get("volume_step", "1"),
+                    item.get("sound_modes", None),
                 )
                 self._config.append(device)
             return True
