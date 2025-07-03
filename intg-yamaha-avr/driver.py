@@ -240,11 +240,7 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
 
         if "state" in update:
             state = _device_state_to_media_player_state(update["state"])
-            if (
-                target_entity.attributes.get(media_player.Attributes.STATE, None)
-                != state
-            ):
-                attributes[ucapi.media_player.Attributes.STATE] = state
+            attributes[ucapi.media_player.Attributes.STATE] = state
 
         if isinstance(configured_entity, YamahaMediaPlayer):
             if "source_list" in update:
