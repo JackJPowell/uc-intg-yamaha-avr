@@ -315,6 +315,10 @@ class YamahaAVR:
                         case "setVolume":
                             volume = kwargs["volume"]  # up, down, level
                             step = int(self.device_config.volume_step)
+                            if step < 1:
+                                step = 1
+                            else:
+                                step = step * 2
                             _LOG.debug(
                                 "[%s] Volume command: %s Step: %s",
                                 self.log_id,
