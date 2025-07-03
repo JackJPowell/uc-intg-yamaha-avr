@@ -7,7 +7,7 @@ import asyncio
 import logging
 from asyncio import AbstractEventLoop
 from datetime import datetime
-from enum import Enum, IntEnum
+from enum import StrEnum, IntEnum
 from typing import Any, ParamSpec, TypeVar
 
 import aiohttp
@@ -38,7 +38,7 @@ _YamahaAvrT = TypeVar("_YamahaAvrT", bound="YamahaAVR")
 _P = ParamSpec("_P")
 
 
-class PowerState(str, Enum):
+class PowerState(StrEnum):
     """Playback state for companion protocol."""
 
     OFF = "OFF"
