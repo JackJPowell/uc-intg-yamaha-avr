@@ -333,7 +333,8 @@ class YamahaAVR:
                                 current_status = await avr.request(
                                     Zone.get_status(zone)
                                 )
-                                mute = not await current_status.json()["mute"]
+                                current_status = await current_status.json()
+                                mute = not current_status["mute"]
                             res = await avr.request(Zone.set_mute(zone, mute))
                             self._muted = mute
                             update["muted"] = mute
