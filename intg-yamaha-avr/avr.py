@@ -41,9 +41,9 @@ _P = ParamSpec("_P")
 class PowerState(StrEnum):
     """Playback state for companion protocol."""
 
-    OFF = "OFF"
-    ON = "ON"
-    STANDBY = "STANDBY"
+    OFF = "off"
+    ON = "on"
+    STANDBY = "standby"
 
 
 class YamahaAVR:
