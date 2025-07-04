@@ -6,7 +6,6 @@ This module implements the Yamaha AVR communication of the Remote Two integratio
 import asyncio
 import logging
 from asyncio import AbstractEventLoop
-from datetime import datetime
 from enum import StrEnum, IntEnum
 from typing import Any, ParamSpec, TypeVar
 
@@ -61,13 +60,13 @@ class YamahaAVR:
         self._connection_attempts: int = 0
         self._polling = None
         self._poll_interval: int = 10
-        self._state: PowerState = PowerState.STANDBY
+        self._state: PowerState = PowerState.OFF
         self._source_list: list[str] = self._device.input_list or []
         self._volume_level: float = 0.0
         self._active_source: str = ""
         self._zone: str = "main"
         self._muted: bool = False
-        self._sound_mode: str | None = None
+        self._sound_mode: str = ""
         self._sound_mode_list: list[str] = self._device.sound_modes or []
 
     @property
@@ -125,7 +124,7 @@ class YamahaAVR:
     @property
     def sound_mode(self) -> str | None:
         """Return the current sound mode."""
-        return self._sound_mode if self._sound_mode else None
+        return self._sound_mode if self._sound_mode else ""
 
     @property
     def attributes(self) -> dict[str, any]:
@@ -151,28 +150,28 @@ class YamahaAVR:
 
     async def connect(self) -> None:
         """Establish connection to the AVR."""
-        if self.state == PowerState.ON:
+        if self.state != PowerState.OFF:
             return
 
         _LOG.debug("[%s] Connecting to device", self.log_id)
         self.events.emit(EVENTS.CONNECTING, self._device.identifier)
-        self._connect_task = asyncio.create_task(self._connect_setup())
+        await self._connect_setup()
 
     async def _connect_setup(self) -> None:
         try:
-            alive = await self._connect()
+            await self._connect()
 
-            if alive is True:
+            if self.state != PowerState.OFF:
                 _LOG.debug("[%s] Device is alive", self.log_id)
                 self.events.emit(
-                    EVENTS.UPDATE, self._device.identifier, {"state": PowerState.ON}
+                    EVENTS.UPDATE, self._device.identifier, {"state": self.state}
                 )
             else:
                 _LOG.debug("[%s] Device is not alive", self.log_id)
                 self.events.emit(
                     EVENTS.UPDATE,
                     self._device.identifier,
-                    {"state": PowerState.STANDBY},
+                    {"state": PowerState.OFF},
                 )
         except asyncio.CancelledError:
             pass
@@ -184,9 +183,9 @@ class YamahaAVR:
         self.events.emit(EVENTS.CONNECTED, self._device.identifier)
         _LOG.debug("[%s] Connected", self.log_id)
 
-        await asyncio.sleep(1)
-        await self._start_polling()
         await self._update_attributes()
+        # await asyncio.sleep(1)
+        # await self._start_polling()
 
     async def _connect(self) -> None:
         """Connect to the device."""

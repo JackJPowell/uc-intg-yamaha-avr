@@ -101,7 +101,7 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
                 api.configured_entities.update_attributes(
                     entity_id, {media_player.Attributes.STATE: state}
                 )
-                await device.connect()
+                # await device.connect()
                 continue
 
         device = config.devices.get(device_id)
@@ -215,7 +215,7 @@ def _device_state_to_media_player_state(
         case avr.PowerState.STANDBY:
             state = media_player.States.STANDBY
         case _:
-            state = media_player.States.UNKNOWN
+            state = media_player.States.UNAVAILABLE
     return state
 
 
@@ -240,10 +240,12 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
             target_entity = api.available_entities.get(identifier)
 
         if "state" in update:
-            _LOG.debug("PreState %s", update["state"])
             state = _device_state_to_media_player_state(update["state"])
-            _LOG.debug("PostState %s", state)
-            attributes[ucapi.media_player.Attributes.STATE] = state
+            if (
+                target_entity.attributes.get(media_player.Attributes.STATE, None)
+                != state
+            ):
+                attributes[ucapi.media_player.Attributes.STATE] = state
 
         if isinstance(configured_entity, YamahaMediaPlayer):
             if "source_list" in update:
@@ -279,14 +281,31 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                 != update["source"]
             ):
                 attributes[media_player.Attributes.SOURCE] = update["source"]
+
             if "volume" in update:
-                attributes[media_player.Attributes.VOLUME] = update["volume"]
+                if (
+                    target_entity.attributes.get(media_player.Attributes.VOLUME, None)
+                    != update["volume"]
+                ):
+                    attributes[media_player.Attributes.VOLUME] = update["volume"]
 
             if "muted" in update:
-                attributes[media_player.Attributes.MUTED] = update["muted"]
+                if (
+                    target_entity.attributes.get(media_player.Attributes.MUTED, None)
+                    != update["muted"]
+                ):
+                    attributes[media_player.Attributes.MUTED] = update["muted"]
 
             if "sound_mode" in update:
-                attributes[media_player.Attributes.SOUND_MODE] = update["sound_mode"]
+                if (
+                    target_entity.attributes.get(
+                        media_player.Attributes.SOUND_MODE, None
+                    )
+                    != update["sound_mode"]
+                ):
+                    attributes[media_player.Attributes.SOUND_MODE] = update[
+                        "sound_mode"
+                    ]
 
             if media_player.Attributes.STATE in attributes:
                 if attributes[media_player.Attributes.STATE] in [
@@ -305,7 +324,7 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                 api.available_entities.update_attributes(identifier, attributes)
 
 
-def _add_configured_device(device_config: YamahaDevice, connect: bool = True) -> None:
+def _add_configured_device(device_config: YamahaDevice, connect: bool = False) -> None:
     # the device should not yet be configured, but better be safe
     if device_config.identifier in _configured_devices:
         _LOG.debug(

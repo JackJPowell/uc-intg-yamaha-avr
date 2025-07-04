@@ -373,8 +373,8 @@ YAMAHA_REMOTE_UI_PAGES = [
                     },
                 },
                 "icon": "uc:coffee-pot",
-                "location": {"x": 3, "y": 1},
-                "size": {"height": 1, "width": 1},
+                "location": {"x": 2, "y": 2},
+                "size": {"height": 1, "width": 2},
                 "type": "icon",
             },
             {
