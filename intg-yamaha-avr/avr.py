@@ -58,15 +58,12 @@ class YamahaAVR:
         self._is_connected: bool = False
         self._yamaha_avr: AsyncDevice | None = None
         self._device: YamahaDevice = device
-        self._connect_task = None
         self._connection_attempts: int = 0
         self._polling = None
         self._poll_interval: int = 10
-        self._state: PowerState | None = None
+        self._state: PowerState = PowerState.STANDBY
         self._source_list: list[str] = self._device.input_list or []
         self._volume_level: float = 0.0
-        self._end_of_power_off: datetime | None = None
-        self._end_of_power_on: datetime | None = None
         self._active_source: str = ""
         self._zone: str = "main"
         self._muted: bool = False
