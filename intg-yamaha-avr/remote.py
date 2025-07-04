@@ -143,6 +143,14 @@ class YamahaRemote(Remote):
                         res = await yamaha.send_command(
                             "setVolume", group="zone", zone="main", volume="down"
                         )
+                    case media_player.Commands.VOLUME:
+                        volume_level = params.get("volume")
+                        res = await yamaha.send_command(
+                            "setVolume",
+                            group="zone",
+                            zone="main",
+                            volume_level=volume_level,
+                        )
                     case media_player.Commands.MUTE:
                         res = await yamaha.send_command(
                             "setMute", group="zone", zone="main", mute=True

@@ -35,6 +35,7 @@ features = [
     media_player.Features.NUMPAD,
     media_player.Features.INFO,
     media_player.Features.SETTINGS,
+    media_player.Features.VOLUME,
 ]
 
 
@@ -63,7 +64,7 @@ class YamahaMediaPlayer(MediaPlayer):
                 else [],
                 Attributes.VOLUME: device.volume,
             },
-            device_class=DeviceClasses.TV,
+            device_class=DeviceClasses.RECEIVER,
             options={
                 media_player.Options.SIMPLE_COMMANDS: [
                     SimpleCommands.SLEEP_OFF.value,
@@ -123,6 +124,14 @@ class YamahaMediaPlayer(MediaPlayer):
                 case media_player.Commands.VOLUME_DOWN:
                     res = await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="down"
+                    )
+                case media_player.Commands.VOLUME:
+                    volume_level = params.get("volume")
+                    res = await yamaha.send_command(
+                        "setVolume",
+                        group="zone",
+                        zone="main",
+                        volume_level=volume_level,
                     )
                 case media_player.Commands.MUTE:
                     res = await yamaha.send_command(
