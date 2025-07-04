@@ -40,6 +40,7 @@ docker run -d \
   --network host \
   -v $(pwd)/<local_directory>:/config \
   --restart unless-stopped \
+  -e UC_INTEGRATION_HTTP_PORT=9090 \
   ghcr.io/jackjpowell/uc-intg-yamaha-avr:latest
 ```
 
@@ -52,6 +53,8 @@ docker run -d \
     network_mode: host
     volumes:
       - ./<local_directory>:/config
+    environment:
+      - UC_INTEGRATION_HTTP_PORT=9090
     restart: unless-stopped
 ```
 
