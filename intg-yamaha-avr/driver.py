@@ -93,6 +93,7 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
             if device_id in _configured_devices:
                 device = _configured_devices[device_id]
                 _LOG.info("Add '%s' to configured devices and connect", device.name)
+                _LOG.debug("Device State: %s", device.state)
                 if device.state is None:
                     state = media_player.States.UNAVAILABLE
                 else:
@@ -208,7 +209,7 @@ def _device_state_to_media_player_state(
 ) -> media_player.States:
     match device_state:
         case avr.PowerState.ON:
-            state = media_player.States.PLAYING
+            state = media_player.States.ON
         case avr.PowerState.OFF:
             state = media_player.States.OFF
         case avr.PowerState.STANDBY:

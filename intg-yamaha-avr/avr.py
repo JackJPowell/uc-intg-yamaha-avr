@@ -41,9 +41,9 @@ _P = ParamSpec("_P")
 class PowerState(StrEnum):
     """Playback state for companion protocol."""
 
-    OFF = "off"
-    ON = "on"
-    STANDBY = "standby"
+    OFF = "OFF"
+    ON = "ON"
+    STANDBY = "STANDBY"
 
 
 class YamahaAVR:
@@ -103,7 +103,7 @@ class YamahaAVR:
     @property
     def state(self) -> PowerState | None:
         """Return the device state."""
-        return self._state
+        return self._state.upper()
 
     @property
     def source_list(self) -> list[str]:
