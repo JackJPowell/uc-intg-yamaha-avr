@@ -367,6 +367,14 @@ class YamahaAVR:
                                 res = await avr.request(Zone.set_mute(zone, mute))
                                 self._muted = mute
                                 update["muted"] = mute
+                            case "controlCursor":
+                                cursor = kwargs["cursor"]
+                                res = await avr.request(
+                                    Zone.control_cursor(zone, cursor)
+                                )
+                            case "controlMenu":
+                                menu = kwargs["menu"]
+                                res = await avr.request(Zone.control_menu(zone, menu))
                             case "setInput":
                                 input_source = kwargs["input_source"]
                                 input_source = input_source.lower()

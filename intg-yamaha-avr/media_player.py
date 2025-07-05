@@ -145,32 +145,57 @@ class YamahaMediaPlayer(MediaPlayer):
                     res = await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute="toggle"
                     )
-                case (
-                    media_player.Commands.CURSOR_UP
-                    | media_player.Commands.CURSOR_DOWN
-                    | media_player.Commands.CURSOR_LEFT
-                    | media_player.Commands.CURSOR_RIGHT
-                    | media_player.Commands.CURSOR_ENTER
-                    | media_player.Commands.BACK
-                    | media_player.Commands.DIGIT_0
-                    | media_player.Commands.DIGIT_1
-                    | media_player.Commands.DIGIT_2
-                    | media_player.Commands.DIGIT_3
-                    | media_player.Commands.DIGIT_4
-                    | media_player.Commands.DIGIT_5
-                    | media_player.Commands.DIGIT_6
-                    | media_player.Commands.DIGIT_7
-                    | media_player.Commands.DIGIT_8
-                    | media_player.Commands.DIGIT_9
-                    | media_player.Commands.INFO
-                    | media_player.Commands.SETTINGS
-                    | media_player.Commands.HOME
-                    | media_player.Commands.MENU
-                ):
-                    ir_code = IrCodes[cmd_id.upper()].value
-                    _LOG.debug("Sending IR code %s for command %s", ir_code, cmd_id)
+                case media_player.Commands.CURSOR_UP:
                     res = await yamaha.send_command(
-                        "sendIrCode", ir_code=ir_code, group="system"
+                        "controlCursor", group="zone", zone="main", cursor="up"
+                    )
+                case media_player.Commands.CURSOR_DOWN:
+                    res = await yamaha.send_command(
+                        "controlCursor", group="zone", zone="main", cursor="down"
+                    )
+                case media_player.Commands.CURSOR_LEFT:
+                    res = await yamaha.send_command(
+                        "controlCursor", group="zone", zone="main", cursor="left"
+                    )
+                case media_player.Commands.CURSOR_RIGHT:
+                    res = await yamaha.send_command(
+                        "controlCursor", group="zone", zone="main", cursor="right"
+                    )
+                case media_player.Commands.CURSOR_ENTER:
+                    res = await yamaha.send_command(
+                        "controlCursor", group="zone", zone="main", cursor="select"
+                    )
+                case media_player.Commands.BACK | SimpleCommands.RETURN.value:
+                    res = await yamaha.send_command(
+                        "controlCursor", group="zone", zone="main", cursor="return"
+                    )
+                case media_player.Commands.INFO:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="display"
+                    )
+                case media_player.Commands.MENU:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="on_screen"
+                    )
+                case media_player.Commands.HOME:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="home"
+                    )
+                case media_player.Commands.FUNCTION_RED:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="red"
+                    )
+                case media_player.Commands.FUNCTION_GREEN:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="green"
+                    )
+                case media_player.Commands.FUNCTION_YELLOW:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="yellow"
+                    )
+                case media_player.Commands.FUNCTION_BLUE:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="blue"
                     )
                 case media_player.Commands.SELECT_SOURCE:
                     await yamaha.send_command(
@@ -187,10 +212,6 @@ class YamahaMediaPlayer(MediaPlayer):
                         sound_mode=params.get("sound_mode"),
                     )
                 # --- simple commands ---
-                case SimpleCommands.NUMBER_ENTER.value:
-                    res = await yamaha.send_command(
-                        "sendIrCode", IrCode=IrCodes.NUMBER_ENTER.value, group="system"
-                    )
                 case SimpleCommands.SLEEP_OFF.value:
                     res = await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="0"

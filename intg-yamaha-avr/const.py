@@ -18,32 +18,13 @@ class SimpleCommands(str, Enum):
     SOUND_MODE_PURE = "Sound Mode Pure Direct"
     SOUND_MODE_CLEAR_VOICE = "Clear Voice"
     NUMBER_ENTER = "Number Enter"
+    RETURN = "Return"
 
 
 class IrCodes(StrEnum):
     """IR codes for the Yamaha AVR."""
 
-    CURSOR_DOWN = "5EA139C6"
-    CURSOR_LEFT = "5EA1F906"
-    CURSOR_RIGHT = "5EA17986"
-    CURSOR_UP = "7A9D63"
-    CURSOR_ENTER = "5EA17B84"
-    BACK = "5EA155AA"
-    DIGIT_0 = "FE805AA5"
-    DIGIT_1 = "FE808A75"
-    DIGIT_2 = "FE804AB5"
-    DIGIT_3 = "FE80CA35"
-    DIGIT_4 = "FE802AD5"
-    DIGIT_5 = "FE80AA55"
-    DIGIT_6 = "FE806A95"
-    DIGIT_7 = "FE80EA15"
-    DIGIT_8 = "FE801AE5"
-    DIGIT_9 = "FE809A65"
-    INFO = "7A6B15"
-    SETTINGS = "7A847A"
-    MENU = "7AA0DE"
-    HOME = "7F016698"
-    NUMBER_ENTER = "FE803AC5"
+    HOME = "7F016698"  # Stub code for Home button
 
 
 class States(IntEnum):
