@@ -255,7 +255,7 @@ class YamahaMediaPlayer(MediaPlayer):
 
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)
-            return ucapi.StatusCodes.TIMEOUT
+            return ucapi.StatusCodes.BAD_REQUEST
         return ucapi.StatusCodes.OK
 
 

@@ -324,7 +324,7 @@ class YamahaAVR:
                                     case "standby":
                                         update["state"] = PowerState.STANDBY
                             case "setSleep":
-                                sleep = kwargs["sleep"]  # 0,30,60,90,120
+                                sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
                             case "setVolume":
                                 volume = kwargs["volume"]  # up, down, level
@@ -417,8 +417,7 @@ class YamahaAVR:
                 command,
                 err,
             )
-            self.events.emit(EVENTS.ERROR, self._device.identifier, str(err))
-            return str(err)
+            raise Exception(err) from err  # pylint: disable=broad-exception-caught
 
     async def _poll_worker(self) -> None:
         await asyncio.sleep(1)
