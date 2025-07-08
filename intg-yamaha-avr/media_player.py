@@ -173,7 +173,7 @@ class YamahaMediaPlayer(MediaPlayer):
                     res = await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="display"
                     )
-                case media_player.Commands.MENU:
+                case media_player.Commands.SETTINGS:
                     res = await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="on_screen"
                     )
@@ -251,6 +251,10 @@ class YamahaMediaPlayer(MediaPlayer):
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
                     res = await yamaha.send_command(
                         "setClearVoice", group="zone", zone="main"
+                    )
+                case SimpleCommands.OPTIONS.value:
+                    res = await yamaha.send_command(
+                        "controlMenu", group="zone", zone="main", menu="option"
                     )
 
         except Exception as ex:  # pylint: disable=broad-except

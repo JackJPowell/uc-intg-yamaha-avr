@@ -19,6 +19,7 @@ class SimpleCommands(str, Enum):
     SOUND_MODE_CLEAR_VOICE = "Clear Voice"
     NUMBER_ENTER = "Number Enter"
     RETURN = "Return"
+    OPTIONS = "Options"
 
 
 class IrCodes(StrEnum):

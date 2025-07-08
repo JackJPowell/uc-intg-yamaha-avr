@@ -191,7 +191,7 @@ class YamahaRemote(Remote):
                         res = await yamaha.send_command(
                             "controlMenu", group="zone", zone="main", menu="display"
                         )
-                    case media_player.Commands.MENU:
+                    case media_player.Commands.SETTINGS:
                         res = await yamaha.send_command(
                             "controlMenu", group="zone", zone="main", menu="on_screen"
                         )
@@ -269,6 +269,10 @@ class YamahaRemote(Remote):
                     case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
                         res = await yamaha.send_command(
                             "setClearVoice", group="zone", zone="main"
+                        )
+                    case SimpleCommands.OPTIONS.value:
+                        res = await yamaha.send_command(
+                            "controlMenu", group="zone", zone="main", menu="option"
                         )
 
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
