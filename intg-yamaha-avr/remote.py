@@ -438,6 +438,19 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "command": {
                     "cmd_id": "remote.send",
                     "params": {
+                        "command": SimpleCommands.OPTIONS,
+                        "repeat": 1,
+                    },
+                },
+                "location": {"x": 1, "y": 1},
+                "size": {"height": 1, "width": 1},
+                "icon": "uc:option",
+                "type": "icon",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
                         "command": SimpleCommands.SLEEP_30,
                         "repeat": 1,
                     },
@@ -742,19 +755,6 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "location": {"x": 2, "y": 1},
                 "size": {"height": 1, "width": 1},
                 "icon": "uc:right-arrow",
-                "type": "icon",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {
-                        "command": media_player.Commands.CURSOR_RIGHT,
-                        "repeat": 1,
-                    },
-                },
-                "location": {"x": 0, "y": 2},
-                "size": {"height": 1, "width": 1},
-                "icon": "uc:option",
                 "type": "icon",
             },
             {

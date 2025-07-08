@@ -241,12 +241,6 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
 
         if "state" in update:
             state = _device_state_to_media_player_state(update["state"])
-            if (
-                isinstance(configured_entity, YamahaRemote)
-                and state == media_player.States.STANDBY
-            ):
-                state = media_player.States.OFF
-
             attributes[ucapi.media_player.Attributes.STATE] = state
 
         if isinstance(configured_entity, YamahaMediaPlayer):
@@ -293,8 +287,6 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                     != update["muted"]
                 ):
                     attributes[media_player.Attributes.MUTED] = update["muted"]
-
-            attributes[media_player.Attributes.MEDIA_TITLE] = "Test Title"
 
             if "sound_mode" in update:
                 if (
