@@ -347,7 +347,9 @@ class YamahaAVR:
                                 )
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
-                                self._volume = status.get("actual_volume").get("value")
+                                self._volume_level = status.get("actual_volume").get(
+                                    "value"
+                                )
                                 update["volume"] = self.volume
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
