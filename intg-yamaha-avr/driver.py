@@ -272,7 +272,7 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                         "sound_mode_list"
                     ]
             if "source" in update:
-                attributes[media_player.Attributes.SOURCE] = update["source"]
+                attributes[media_player.Attributes.MEDIA_TITLE] = update["source"]
 
             if "volume" in update:
                 if (
@@ -289,15 +289,7 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                     attributes[media_player.Attributes.MUTED] = update["muted"]
 
             if "sound_mode" in update:
-                if (
-                    target_entity.attributes.get(
-                        media_player.Attributes.SOUND_MODE, None
-                    )
-                    != update["sound_mode"]
-                ):
-                    attributes[media_player.Attributes.SOUND_MODE] = update[
-                        "sound_mode"
-                    ]
+                attributes[media_player.Attributes.MEDIA_ARTIST] = update["sound_mode"]
 
             if media_player.Attributes.STATE in attributes:
                 if attributes[media_player.Attributes.STATE] in [

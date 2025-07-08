@@ -258,7 +258,7 @@ class YamahaAVR:
 
         try:
             update["state"] = self.state
-            update["source"] = self.source
+            update["source"] = self.source.upper()
             update["muted"] = self.muted
             update["source_list"] = self.source_list
             update["sound_mode"] = self.sound_mode
