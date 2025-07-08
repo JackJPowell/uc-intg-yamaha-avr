@@ -209,7 +209,7 @@ def _device_state_to_media_player_state(
 ) -> media_player.States:
     match device_state:
         case avr.PowerState.ON:
-            state = media_player.States.ON
+            state = media_player.States.PLAYING
         case avr.PowerState.OFF:
             state = media_player.States.OFF
         case avr.PowerState.STANDBY:
