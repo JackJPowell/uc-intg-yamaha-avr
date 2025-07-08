@@ -209,7 +209,7 @@ def _device_state_to_media_player_state(
 ) -> media_player.States:
     match device_state:
         case avr.PowerState.ON:
-            state = media_player.States.PLAYING
+            state = media_player.States.ON
         case avr.PowerState.OFF:
             state = media_player.States.OFF
         case avr.PowerState.STANDBY:
@@ -241,11 +241,7 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
 
         if "state" in update:
             state = _device_state_to_media_player_state(update["state"])
-            if (
-                target_entity.attributes.get(media_player.Attributes.STATE, None)
-                != state
-            ):
-                attributes[ucapi.media_player.Attributes.STATE] = state
+            attributes[ucapi.media_player.Attributes.STATE] = state
             _LOG.debug(
                 "Type: %s New state: %s Current State: %s",
                 identifier,
