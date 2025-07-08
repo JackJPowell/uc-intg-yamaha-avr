@@ -77,6 +77,7 @@ class YamahaMediaPlayer(MediaPlayer):
                     SimpleCommands.SOUND_MODE_DIRECT.value,
                     SimpleCommands.SOUND_MODE_PURE.value,
                     SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
+                    SimpleCommands.OPTIONS.value,
                 ],
             },
             cmd_handler=self.media_player_cmd_handler,

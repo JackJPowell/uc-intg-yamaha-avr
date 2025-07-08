@@ -308,6 +308,7 @@ YAMAHA_REMOTE_SIMPLE_COMMANDS = [
     SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
     SimpleCommands.NUMBER_ENTER.value,
     SimpleCommands.RETURN.value,
+    SimpleCommands.OPTIONS.value,
 ]
 YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
@@ -740,6 +741,19 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "location": {"x": 2, "y": 1},
                 "size": {"height": 1, "width": 1},
                 "icon": "uc:right-arrow",
+                "type": "icon",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {
+                        "command": media_player.Commands.CURSOR_RIGHT,
+                        "repeat": 1,
+                    },
+                },
+                "location": {"x": 0, "y": 2},
+                "size": {"height": 1, "width": 1},
+                "icon": "uc:option",
                 "type": "icon",
             },
             {
