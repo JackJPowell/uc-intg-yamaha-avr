@@ -246,6 +246,12 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                 != state
             ):
                 attributes[ucapi.media_player.Attributes.STATE] = state
+            _LOG.debug(
+                "Type: %s New state: %s Current State: %s",
+                identifier,
+                state,
+                target_entity.attributes.get(media_player.Attributes.STATE, None),
+            )
 
         if isinstance(configured_entity, YamahaMediaPlayer):
             if "source_list" in update:

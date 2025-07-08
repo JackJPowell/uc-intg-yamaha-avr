@@ -414,7 +414,7 @@ class YamahaAVR:
                 command,
                 err,
             )
-            raise Exception(err) from err  # pylint: disable=broad-exception-caught
+            raise Exception(err) from err
 
     async def _poll_worker(self) -> None:
         await asyncio.sleep(1)
