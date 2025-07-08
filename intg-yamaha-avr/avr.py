@@ -345,6 +345,7 @@ class YamahaAVR:
                                 res = await avr.request(
                                     Zone.set_volume(zone, volume, step)
                                 )
+                                await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
                                 self._volume_level = status.get("actual_volume").get(

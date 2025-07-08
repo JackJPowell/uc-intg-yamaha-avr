@@ -16,7 +16,7 @@ from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
 from ucapi.ui import DeviceButtonMapping, Buttons
 import avr
-from const import SimpleCommands, IrCodes
+from const import SimpleCommands
 
 _LOG = logging.getLogger(__name__)
 
