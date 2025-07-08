@@ -26,6 +26,7 @@ YAMAHA_REMOTE_STATE_MAPPING = {
     MediaStates.OFF: RemoteStates.OFF,
     MediaStates.ON: RemoteStates.ON,
     MediaStates.STANDBY: RemoteStates.OFF,
+    MediaStates.PLAYING: RemoteStates.ON,
 }
 
 
