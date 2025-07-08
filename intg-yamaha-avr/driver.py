@@ -277,12 +277,8 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                     attributes[media_player.Attributes.SOUND_MODE_LIST] = update[
                         "sound_mode_list"
                     ]
-            # if (
-            #     "source" in update
-            #     and target_entity.attributes.get(media_player.Attributes.SOURCE, "")
-            #     != update["source"]
-            # ):
-            attributes[media_player.Attributes.SOURCE] = update["source"]
+            if "source" in update:
+                attributes[media_player.Attributes.SOURCE] = update["source"]
 
             if "volume" in update:
                 if (
