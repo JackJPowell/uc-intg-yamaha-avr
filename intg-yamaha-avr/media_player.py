@@ -9,6 +9,7 @@ from typing import Any
 import asyncio
 import ucapi
 import ucapi.api as uc
+import re
 
 import avr
 from config import YamahaDevice, create_entity_id
@@ -48,6 +49,22 @@ class YamahaMediaPlayer(MediaPlayer):
         _LOG.debug("Yamaha AVR Media Player init")
         entity_id = create_entity_id(config_device.identifier, EntityTypes.MEDIA_PLAYER)
         self.config = config_device
+        self.options = [
+            SimpleCommands.SLEEP_OFF.value,
+            SimpleCommands.SLEEP_30.value,
+            SimpleCommands.SLEEP_60.value,
+            SimpleCommands.SLEEP_90.value,
+            SimpleCommands.SLEEP_120.value,
+            SimpleCommands.HDMI_OUTPUT_1.value,
+            SimpleCommands.HDMI_OUTPUT_2.value,
+            SimpleCommands.SOUND_MODE_DIRECT.value,
+            SimpleCommands.SOUND_MODE_PURE.value,
+            SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
+            SimpleCommands.OPTIONS.value,
+        ]
+        if self._device.speaker_pattern_count > 0:
+            for pattern in range(self._device.speaker_pattern_count):
+                self.options.extend([f"SPEAKER_PATTERN_{pattern + 1}"])
 
         super().__init__(
             entity_id,
@@ -65,21 +82,7 @@ class YamahaMediaPlayer(MediaPlayer):
                 Attributes.VOLUME: device.volume,
             },
             device_class=DeviceClasses.RECEIVER,
-            options={
-                media_player.Options.SIMPLE_COMMANDS: [
-                    SimpleCommands.SLEEP_OFF.value,
-                    SimpleCommands.SLEEP_30.value,
-                    SimpleCommands.SLEEP_60.value,
-                    SimpleCommands.SLEEP_90.value,
-                    SimpleCommands.SLEEP_120.value,
-                    SimpleCommands.HDMI_OUTPUT_1.value,
-                    SimpleCommands.HDMI_OUTPUT_2.value,
-                    SimpleCommands.SOUND_MODE_DIRECT.value,
-                    SimpleCommands.SOUND_MODE_PURE.value,
-                    SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
-                    SimpleCommands.OPTIONS.value,
-                ],
-            },
+            options={media_player.Options.SIMPLE_COMMANDS: self.options},
             cmd_handler=self.media_player_cmd_handler,
         )
 
@@ -100,8 +103,13 @@ class YamahaMediaPlayer(MediaPlayer):
         _LOG.info(
             "Got %s command request: %s %s", entity.id, cmd_id, params if params else ""
         )
+        pattern = 0
 
         yamaha = self._device
+
+        if re.match("SPEAKER_PATTERN", cmd_id):
+            pattern = cmd_id.split("_")[-1]
+            cmd_id = "SPEAKER_PATTERN"
 
         try:
             match cmd_id:
@@ -257,6 +265,14 @@ class YamahaMediaPlayer(MediaPlayer):
                     res = await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="option"
                     )
+                case "SPEAKER_PATTERN":
+                    if int(pattern) > 0:
+                        res = await yamaha.send_command(
+                            "setSpeakerPattern", group="system", pattern=pattern
+                        )
+                    else:
+                        return ucapi.StatusCodes.BAD_REQUEST
+                    pattern = 0
 
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)

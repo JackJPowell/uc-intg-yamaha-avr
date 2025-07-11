@@ -347,50 +347,52 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
 
     _LOG.debug("Connecting to Yamaha AVR at %s", ip)
 
-    dev = Device(ip)
-    res = dev.request(System.get_device_info())
-    data = res.json()
-    res = dev.request(System.get_features())
-    features = res.json()
-    input_list = next(
-        (
-            zone.get("input_list", [])
-            for zone in features["zone"]
-            if zone["id"] == "main"
-        ),
-        [],
-    )
-    sound_modes = next(
-        (
-            zone.get("sound_mode_list", [])
-            for zone in features["zone"]
-            if zone["id"] == "main"
-        ),
-        [],
-    )
-
-    _LOG.info("Yamaha AVR info: %s", input_list)
-
-    # if we are adding a new device: make sure it's not already configured
-    if _cfg_add_device and config.devices.contains(data.get("serial_number")):
-        _LOG.info(
-            "Skipping found device %s: already configured",
-            data.get("model_name"),
+    try:
+        dev = Device(ip)
+        res = dev.request(System.get_device_info())
+        data = res.json()
+        res = dev.request(System.get_features())
+        features = res.json()
+        input_list = next(
+            (
+                zone.get("input_list", [])
+                for zone in features["zone"]
+                if zone["id"] == "main"
+            ),
+            [],
         )
-        return SetupError(error_type=IntegrationSetupError.OTHER)
-    device = YamahaDevice(
-        identifier=data.get("serial_number"),
-        name=data.get("model_name"),
-        address=ip,
-        volume_step=step,
-        input_list=input_list,
-        sound_modes=sound_modes,
-    )
+        sound_modes = next(
+            (
+                zone.get("sound_mode_list", [])
+                for zone in features["zone"]
+                if zone["id"] == "main"
+            ),
+            [],
+        )
 
-    config.devices.add_or_update(device)
+        _LOG.info("Yamaha AVR info: %s", input_list)
+
+        # if we are adding a new device: make sure it's not already configured
+        if _cfg_add_device and config.devices.contains(data.get("serial_number")):
+            _LOG.info(
+                "Skipping found device %s: already configured",
+                data.get("model_name"),
+            )
+            return SetupError(error_type=IntegrationSetupError.OTHER)
+        device = YamahaDevice(
+            identifier=data.get("serial_number"),
+            name=data.get("model_name"),
+            address=ip,
+            volume_step=step,
+            input_list=input_list,
+            sound_modes=sound_modes,
+        )
+
+        config.devices.add_or_update(device)
+    except Exception as err:  # pylint: disable=broad-except
+        _LOG.error("Setup Error: %s", err)
+        return SetupError(error_type=IntegrationSetupError.OTHER)
 
     await asyncio.sleep(1)
-
     _LOG.info("Setup successfully completed for %s [%s]", device.name, device)
-
     return SetupComplete()

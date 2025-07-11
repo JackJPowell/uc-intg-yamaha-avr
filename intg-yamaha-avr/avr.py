@@ -68,6 +68,7 @@ class YamahaAVR:
         self._muted: bool = False
         self._sound_mode: str = ""
         self._sound_mode_list: list[str] = self._device.sound_modes or []
+        self._speaker_pattern_count: int = 0
 
     @property
     def device_config(self) -> YamahaDevice:
@@ -127,6 +128,11 @@ class YamahaAVR:
         return self._sound_mode if self._sound_mode else ""
 
     @property
+    def speaker_pattern_count(self) -> int:
+        """Return the number of available speaker patterns."""
+        return self._speaker_pattern_count
+
+    @property
     def attributes(self) -> dict[str, any]:
         """Return the device attributes."""
         updated_data = {
@@ -184,8 +190,6 @@ class YamahaAVR:
         _LOG.debug("[%s] Connected", self.log_id)
 
         await self._update_attributes()
-        # await asyncio.sleep(1)
-        # await self._start_polling()
 
     async def _connect(self) -> None:
         """Connect to the device."""
@@ -231,6 +235,13 @@ class YamahaAVR:
                 self._active_source = status.get("input", "")
                 self._sound_mode = status.get("sound_program", None)
                 self._volume_level = status.get("volume", 0.0)
+
+                features = await avr.request(System.get_features())
+                features = await features.json()
+                self._speaker_pattern_count = features.get("system", {}).get(
+                    "speaker_pattern_count", 0
+                )
+
             except Exception as err:  # pylint: disable=broad-exception-caught
                 _LOG.error("[%s] Error retrieving status: %s", self.log_id, err)
 
@@ -304,6 +315,11 @@ class YamahaAVR:
                                 res = await avr.request(System.set_hdmi_out_1(True))
                             case "setHdmiOut2":
                                 res = await avr.request(System.set_hdmi_out_2(True))
+                            case "setSpeakerPattern":
+                                pattern = int(kwargs["pattern"])
+                                res = await avr.request(
+                                    System.set_speaker_pattern(pattern)
+                                )
                     case "zone":
                         zone = kwargs["zone"]  #  'main', 'zone2', 'zone3', 'zone4'
                         match command:
