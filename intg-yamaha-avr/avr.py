@@ -58,17 +58,20 @@ class YamahaAVR:
         self._yamaha_avr: AsyncDevice | None = None
         self._device: YamahaDevice = device
         self._connection_attempts: int = 0
-        self._polling = None
-        self._poll_interval: int = 10
         self._state: PowerState = PowerState.OFF
         self._source_list: list[str] = self._device.input_list or []
         self._volume_level: float = 0.0
+        self._min_volume_level: int = 0
+        self._max_volume_level: int = 161
         self._active_source: str = ""
+        self._active_source_text: str = ""
         self._zone: str = "main"
         self._muted: bool = False
         self._sound_mode: str = ""
         self._sound_mode_list: list[str] = self._device.sound_modes or []
         self._speaker_pattern_count: int = 0
+        self._features: dict = {}
+        self._volume_mode: str = ""
 
     @property
     def device_config(self) -> YamahaDevice:
@@ -208,19 +211,6 @@ class YamahaAVR:
             _LOG.error("[%s] Connection error: %s", self.log_id, err)
             self._state = PowerState.OFF
 
-    async def _start_polling(self) -> None:
-        if not self._polling:
-            self._polling = self._loop.create_task(self._poll_worker())
-            _LOG.debug("[%s] Polling started", self.log_id)
-
-    async def _stop_polling(self) -> None:
-        if self._polling:
-            self._polling.cancel()
-            self._polling = None
-            _LOG.debug("[%s] Polling stopped", self.log_id)
-        else:
-            _LOG.debug("[%s] Polling was already stopped", self.log_id)
-
     async def _update_attributes(self) -> None:
         _LOG.debug("[%s] Updating app list", self.log_id)
         update = {}
@@ -233,14 +223,30 @@ class YamahaAVR:
                 self._state = status.get("power")
                 self._muted = status.get("mute", False)
                 self._active_source = status.get("input", "")
+                self._active_source_text = status.get("input_text", "")
                 self._sound_mode = status.get("sound_program", None)
                 self._volume_level = status.get("volume", 0.0)
+                self._volume_mode = status.get("actual_volume", {}).get("mode", "")
 
-                features = await avr.request(System.get_features())
-                features = await features.json()
-                self._speaker_pattern_count = features.get("system", {}).get(
+                self._features = await avr.request(System.get_features())
+                self._features = await self._features.json()
+                self._speaker_pattern_count = self._features.get("system", {}).get(
                     "speaker_pattern_count", 0
                 )
+
+                try:
+                    range_steps = next(
+                        zone["range_step"]
+                        for zone in self._features["zone"]
+                        if zone["id"] == "main"
+                    )
+                    self._min_volume_level, self._max_volume_level = next(
+                        (item["min"], item["max"])
+                        for item in range_steps
+                        if item["id"] == "volume"
+                    )
+                except Exception as err:  # pylint: disable=broad-exception-caught
+                    _LOG.warning("Failed to extract volume range: %s", err)
 
             except Exception as err:  # pylint: disable=broad-exception-caught
                 _LOG.error("[%s] Error retrieving status: %s", self.log_id, err)
@@ -269,7 +275,11 @@ class YamahaAVR:
 
         try:
             update["state"] = self.state
-            update["source"] = self.source.upper()
+
+            source_text = self.source.upper()
+            if self._active_source_text:
+                source_text = self._active_source_text
+            update["source"] = source_text
             update["muted"] = self.muted
             update["source_list"] = self.source_list
             update["sound_mode"] = self.sound_mode
@@ -343,21 +353,7 @@ class YamahaAVR:
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
                             case "setVolume":
-                                volume = kwargs["volume"]  # up, down, level
-                                # volume_level = kwargs.get("volume_level", None)
-                                step = int(self.device_config.volume_step)
-
-                                if step < 1:
-                                    step = 1
-                                else:
-                                    step = step * 2
-
-                                _LOG.debug(
-                                    "[%s] Volume command: %s Step: %s",
-                                    self.log_id,
-                                    volume,
-                                    step,
-                                )
+                                volume, step = self._calculate_volume(kwargs)
                                 res = await avr.request(
                                     Zone.set_volume(zone, volume, step)
                                 )
@@ -395,7 +391,18 @@ class YamahaAVR:
                                     Zone.set_input(zone, input_source, mode=None)
                                 )
                                 self._active_source = input_source
-                                update["source"] = input_source
+
+                                await asyncio.sleep(0.1)
+                                res = await avr.request(Zone.get_status(self.zone))
+                                status = await res.json()
+
+                                self._active_source_text = input_source
+                                if (
+                                    status.get("input") == input_source
+                                ):  # We have the new source
+                                    self._active_source_text = status.get("input_text")
+
+                                update["source"] = self._active_source_text
                             case "setSoundMode":
                                 sound_mode = kwargs["sound_mode"]
                                 sound_mode = sound_mode.lower()
@@ -432,24 +439,40 @@ class YamahaAVR:
             )
             raise Exception(err) from err
 
-    async def _poll_worker(self) -> None:
-        await asyncio.sleep(1)
-        while True:
-            await self.get_status()
-            await asyncio.sleep(10)
+    async def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
+        volume = kwargs["volume"]  # up, down, level
+        volume_level = kwargs.get("volume_level", None)
+        step = int(self.device_config.volume_step)
 
-    async def get_status(self) -> str:
-        """Return the status of the device."""
-        update = {}
-        try:
-            async with aiohttp.ClientSession() as session:
-                avr = AsyncDevice(session, self.address)
-                res = await avr.request(Zone.get_status(self.zone))
-                status = await res.json()
-                self._state = status.get("power")
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            _LOG.error("[%s] Error retrieving status: %s", self.log_id, err)
-            self._state = PowerState.OFF
+        if step < 1:
+            step = 1
+        else:
+            step = step * 2
 
-        update["state"] = self.state
-        self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
+        if volume_level is not None:
+            if self._volume_mode == "numeric":
+                volume_level = int(volume_level) * 2
+            elif self._volume_mode == "db":
+                volume_level = float(volume_level) * 2
+            else:
+                volume_level = int(volume_level)
+                _LOG.warning(
+                    "[%s] Unknown volume mode: %s",
+                    self.log_id,
+                    self._volume_mode,
+                )
+
+            if volume_level > self._max_volume_level:
+                volume_level = self._max_volume_level
+            elif volume_level < self._min_volume_level:
+                volume_level = self._min_volume_level
+            volume = volume_level
+            step = 1
+
+        _LOG.debug(
+            "[%s] Volume command: %s Step: %s",
+            self.log_id,
+            volume,
+            step,
+        )
+        return volume, step
