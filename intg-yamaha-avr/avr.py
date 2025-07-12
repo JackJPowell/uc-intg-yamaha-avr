@@ -353,41 +353,7 @@ class YamahaAVR:
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
                             case "setVolume":
-                                volume = kwargs["volume"]  # up, down, level
-                                volume_level = kwargs.get("volume_level", None)
-                                step = int(self.device_config.volume_step)
-
-                                if step < 1:
-                                    step = 1
-                                else:
-                                    step = step * 2
-
-                                if volume_level is not None:
-                                    if self._volume_mode == "numeric":
-                                        volume_level = int(volume_level) * 2
-                                    elif self._volume_mode == "db":
-                                        volume_level = float(volume_level) * 2
-                                    else:
-                                        volume_level = int(volume_level)
-                                        _LOG.warning(
-                                            "[%s] Unknown volume mode: %s",
-                                            self.log_id,
-                                            self._volume_mode,
-                                        )
-
-                                    if volume_level > self._max_volume_level:
-                                        volume_level = self._max_volume_level
-                                    elif volume_level < self._min_volume_level:
-                                        volume_level = self._min_volume_level
-                                    volume = volume_level
-                                    step = 1
-
-                                _LOG.debug(
-                                    "[%s] Volume command: %s Step: %s",
-                                    self.log_id,
-                                    volume,
-                                    step,
-                                )
+                                volume, step = self._calculate_volume(kwargs)
                                 res = await avr.request(
                                     Zone.set_volume(zone, volume, step)
                                 )
@@ -472,3 +438,42 @@ class YamahaAVR:
                 err,
             )
             raise Exception(err) from err
+
+    def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
+        _LOG.debug("[%s] 1", self.log_id)
+        volume = kwargs["volume"]  # up, down, level
+        volume_level = kwargs.get("volume_level", None)
+        step = int(self.device_config.volume_step)
+
+        if step < 1:
+            step = 1
+        else:
+            step = step * 2
+        _LOG.debug("[%s] 2", self.log_id)
+        if volume_level is not None:
+            if self._volume_mode == "numeric":
+                volume_level = int(volume_level) * 2
+            elif self._volume_mode == "db":
+                volume_level = float(volume_level) * 2
+            else:
+                volume_level = int(volume_level)
+                _LOG.warning(
+                    "[%s] Unknown volume mode: %s",
+                    self.log_id,
+                    self._volume_mode,
+                )
+
+            if volume_level > self._max_volume_level:
+                volume_level = self._max_volume_level
+            elif volume_level < self._min_volume_level:
+                volume_level = self._min_volume_level
+            volume = volume_level
+            step = 1
+
+        _LOG.debug(
+            "[%s] Volume command: %s Step: %s",
+            self.log_id,
+            volume,
+            step,
+        )
+        return volume, step
