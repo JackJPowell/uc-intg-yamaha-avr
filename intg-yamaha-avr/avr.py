@@ -450,22 +450,13 @@ class YamahaAVR:
             step = step * 2
 
         if volume_level is not None:
-            if self._volume_mode == "numeric":
-                volume_level = int(volume_level) * 2
-            elif self._volume_mode == "db":
-                volume_level = float(volume_level) * 2
-            else:
-                volume_level = int(volume_level)
-                _LOG.warning(
-                    "[%s] Unknown volume mode: %s",
-                    self.log_id,
-                    self._volume_mode,
-                )
+            try:
+                volume_level = int((161 * float(volume_level) / 100))
+            except ValueError:
+                volume_level = 0
 
-            if volume_level > self._max_volume_level:
-                volume_level = self._max_volume_level
-            elif volume_level < self._min_volume_level:
-                volume_level = self._min_volume_level
+            if volume_level > 135:
+                volume_level = 135
             volume = volume_level
             step = 1
 
