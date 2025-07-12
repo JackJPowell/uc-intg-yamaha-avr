@@ -69,7 +69,7 @@ class YamahaAVR:
         self._muted: bool = False
         self._sound_mode: str = ""
         self._sound_mode_list: list[str] = self._device.sound_modes or []
-        self._speaker_pattern_count: int = 0
+        self._speaker_pattern_count: int = 4
         self._features: dict = {}
         self._volume_mode: str = ""
 
@@ -439,7 +439,7 @@ class YamahaAVR:
             )
             raise Exception(err) from err
 
-    async def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
+    def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
         volume = kwargs["volume"]  # up, down, level
         volume_level = kwargs.get("volume_level", None)
         step = int(self.device_config.volume_step)
