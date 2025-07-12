@@ -440,8 +440,7 @@ class YamahaAVR:
             raise Exception(err) from err
 
     def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
-        _LOG.debug("[%s] 1", self.log_id)
-        volume = kwargs["volume"]  # up, down, level
+        volume = kwargs.get("volume", None)  # up, down, level
         volume_level = kwargs.get("volume_level", None)
         step = int(self.device_config.volume_step)
 
@@ -449,7 +448,7 @@ class YamahaAVR:
             step = 1
         else:
             step = step * 2
-        _LOG.debug("[%s] 2", self.log_id)
+
         if volume_level is not None:
             if self._volume_mode == "numeric":
                 volume_level = int(volume_level) * 2
