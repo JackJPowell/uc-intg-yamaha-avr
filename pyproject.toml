@@ -1,6 +1,6 @@
 [project]
 name = "uc-intg-yamaha-avr"
-version = "0.3.4"
+version = "0.3.5"
 description = "An Unfolded Circle integration for Yamaha AV Receivers"
 readme = "README.md"
 requires-python = ">=3.11"
