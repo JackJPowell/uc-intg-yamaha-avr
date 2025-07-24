@@ -395,7 +395,7 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         config.devices.add_or_update(device)
     except Exception as err:  # pylint: disable=broad-except
         _LOG.error("Setup Error: %s", err)
-        return SetupError(error_type=IntegrationSetupError.OTHER)
+        return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
 
     await asyncio.sleep(1)
     _LOG.info("Setup successfully completed for %s [%s]", device.name, device)
