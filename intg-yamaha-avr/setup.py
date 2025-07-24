@@ -8,9 +8,11 @@ Setup flow for Yamaha AVR Remote integration.
 import asyncio
 import logging
 from enum import IntEnum
+
+import aiohttp
 import config
 from config import YamahaDevice
-from pyamaha import Device, System
+from pyamaha import AsyncDevice, System
 from ucapi import (
     AbortDriverSetup,
     DriverSetupRequest,
@@ -348,11 +350,13 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
     _LOG.debug("Connecting to Yamaha AVR at %s", ip)
 
     try:
-        dev = Device(ip)
-        res = dev.request(System.get_device_info())
-        data = res.json()
-        res = dev.request(System.get_features())
-        features = res.json()
+        async with aiohttp.ClientSession(conn_timeout=2) as client:
+            dev = AsyncDevice(client, ip)
+            res = await dev.request(System.get_device_info())
+            data = res.json()
+            res = await dev.request(System.get_features())
+            features = res.json()
+
         input_list = next(
             (
                 zone.get("input_list", [])
