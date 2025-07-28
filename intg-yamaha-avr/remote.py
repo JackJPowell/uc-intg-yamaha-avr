@@ -319,6 +319,10 @@ YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
         "short_press": {"cmd_id": media_player.Commands.CHANNEL_DOWN},
     },
     {
+        "button": Buttons.DPAD_UP,
+        "short_press": {"cmd_id": media_player.Commands.CURSOR_UP},
+    },
+    {
         "button": Buttons.DPAD_DOWN,
         "short_press": {"cmd_id": media_player.Commands.CURSOR_DOWN},
     },
