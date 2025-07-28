@@ -353,9 +353,9 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
         async with aiohttp.ClientSession(conn_timeout=2) as client:
             dev = AsyncDevice(client, ip)
             res = await dev.request(System.get_device_info())
-            data = res.json()
+            data = await res.json()
             res = await dev.request(System.get_features())
-            features = res.json()
+            features = await res.json()
 
         input_list = next(
             (
