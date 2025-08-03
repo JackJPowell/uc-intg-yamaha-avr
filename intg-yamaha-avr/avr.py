@@ -150,7 +150,11 @@ class YamahaAVR:
     @property
     def sound_mode_list(self) -> list[str]:
         """Return the list of available sound modes."""
-        return sorted(self._sound_mode_list) if self._sound_mode_list else []
+        return (
+            sorted(self._sound_mode_list)
+            if self._sound_mode_list
+            else ["Test1", "Test2"]
+        )
 
     @property
     def volume(self) -> float:
