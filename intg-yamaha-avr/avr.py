@@ -249,6 +249,9 @@ class YamahaAVR:
                         for zone in self._features["zone"]
                         if zone["id"] == "main"
                     )
+                    if self._sound_mode_list is None:
+                        self._sound_mode_list = ["New1", "New2"]
+
                     self._min_volume_level, self._max_volume_level = next(
                         (item["min"], item["max"])
                         for item in range_steps
