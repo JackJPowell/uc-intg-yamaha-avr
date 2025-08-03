@@ -37,6 +37,7 @@ features = [
     media_player.Features.INFO,
     media_player.Features.SETTINGS,
     media_player.Features.VOLUME,
+    media_player.Features.SELECT_SOUND_MODE,
 ]
 
 
