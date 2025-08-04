@@ -300,6 +300,8 @@ async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> Non
                     attributes[media_player.Attributes.VOLUME] = ""
                     attributes[media_player.Attributes.MUTED] = False
                     attributes[media_player.Attributes.SOUND_MODE] = ""
+                    attributes[media_player.Attributes.MEDIA_ARTIST] = ""
+                    attributes[media_player.Attributes.MEDIA_TITLE] = ""
 
         if attributes:
             if api.configured_entities.contains(identifier):

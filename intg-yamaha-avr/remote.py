@@ -226,7 +226,7 @@ class YamahaRemote(Remote):
                         )
                     case media_player.Commands.SELECT_SOUND_MODE:
                         res = await yamaha.send_command(
-                            "setSoundProgram",
+                            "setSoundMode",
                             group="zone",
                             zone="main",
                             sound_mode=params.get("mode"),
