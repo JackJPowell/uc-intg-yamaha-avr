@@ -150,11 +150,7 @@ class YamahaAVR:
     @property
     def sound_mode_list(self) -> list[str]:
         """Return the list of available sound modes."""
-        return (
-            sorted(self._sound_mode_list)
-            if self._sound_mode_list
-            else ["Test1", "Test2"]
-        )
+        return sorted(self._sound_mode_list) if self._sound_mode_list else []
 
     @property
     def volume(self) -> float:
@@ -249,11 +245,6 @@ class YamahaAVR:
                         for zone in self._features["zone"]
                         if zone["id"] == "main"
                     )
-                    _LOG.debug(
-                        "[%s] Sound mode list: %s",
-                        self.log_id,
-                        self._sound_mode_list,
-                    )
 
                     self._min_volume_level, self._max_volume_level = next(
                         (item["min"], item["max"])
@@ -298,7 +289,7 @@ class YamahaAVR:
             update["muted"] = self.muted
             update["source_list"] = self.source_list
             update["sound_mode"] = self.sound_mode
-            update["source_mode_list"] = self.sound_mode_list
+            update["sound_mode_list"] = self.sound_mode_list
             update["volume"] = self.volume
 
         except Exception:  # pylint: disable=broad-exception-caught
