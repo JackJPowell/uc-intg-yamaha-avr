@@ -228,7 +228,7 @@ class YamahaRemote(Remote):
                             "setSoundProgram",
                             group="zone",
                             zone="main",
-                            sound_mode=params.get("sound_mode"),
+                            sound_mode=params.get("mode"),
                         )
                     # --- simple commands ---
                     case SimpleCommands.SLEEP_OFF.value:
