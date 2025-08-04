@@ -302,6 +302,7 @@ class YamahaAVR:
     ) -> str:
         """Send a command to the AVR."""
         update = {}
+        res = None
         try:
             async with aiohttp.ClientSession() as session:
                 avr = AsyncDevice(session, self.address)

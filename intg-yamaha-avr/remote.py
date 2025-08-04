@@ -95,6 +95,7 @@ class YamahaRemote(Remote):
         """Handle command."""
         command = ""
         delay = 0
+        res = None
 
         if params:
             command = params.get("command", "")

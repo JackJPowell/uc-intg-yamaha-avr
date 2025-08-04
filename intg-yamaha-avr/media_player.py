@@ -105,6 +105,7 @@ class YamahaMediaPlayer(MediaPlayer):
             "Got %s command request: %s %s", entity.id, cmd_id, params if params else ""
         )
         pattern = 0
+        res = None
 
         yamaha = self._device
 
