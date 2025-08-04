@@ -217,14 +217,14 @@ class YamahaRemote(Remote):
                             "controlMenu", group="zone", zone="main", menu="blue"
                         )
                     case media_player.Commands.SELECT_SOURCE:
-                        await yamaha.send_command(
+                        res = await yamaha.send_command(
                             "setInput",
                             group="zone",
                             zone="main",
                             input_source=params.get("source"),
                         )
                     case media_player.Commands.SELECT_SOUND_MODE:
-                        await yamaha.send_command(
+                        res = await yamaha.send_command(
                             "setSoundProgram",
                             group="zone",
                             zone="main",
