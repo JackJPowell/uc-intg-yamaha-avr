@@ -232,7 +232,7 @@ async def _handle_driver_setup(
     # Initial setup, make sure we have a clean configuration
     config.devices.clear()  # triggers device instance removal
     _setup_step = SetupSteps.DISCOVER
-    return _user_input_manual
+    return await _handle_discovery()
 
 
 async def _handle_configuration_mode(
