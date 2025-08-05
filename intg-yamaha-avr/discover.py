@@ -29,6 +29,7 @@ class YamahaReceiverDiscovery:
     def discover(self, timeout=2) -> list[YamahaReceiverDetails]:
         """Crude SSDP discovery. Returns a list of RxvDetails objects
         with data about Yamaha Receivers in local network"""
+        _LOG.info("Discovering Yamaha AVRs in local network")
         client = SSDPClient(timeout=timeout)
         devices = client.m_search("ssdp:all")
 
@@ -38,6 +39,7 @@ class YamahaReceiverDiscovery:
             for device in devices
             if device.get("st") == "urn:schemas-upnp-org:device:MediaRenderer:1"
         ]
+        _LOG.info("Found %d MediaRenderer devices", len(media_renderers))
 
         for device in media_renderers:
             _LOG.debug("Found device: %s", device)
