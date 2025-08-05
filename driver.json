@@ -1,8 +1,8 @@
 {
-  "driver_id": "yamaha_avr_driver",
+  "driver_id": "yamaha_avr_driver_discovery",
   "version": "0.4.0",
   "min_core_api": "0.20.0",
-  "name": { "en": "Yamaha AVR" },
+  "name": { "en": "Yamaha AVR (Discovery)" },
   "icon": "uc:display",
   "description": {
     "en": "Control your Yamaha AVR with Remote Two/3.",
