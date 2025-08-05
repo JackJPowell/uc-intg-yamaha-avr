@@ -12,6 +12,7 @@ from enum import IntEnum
 import aiohttp
 import config
 from config import YamahaDevice
+from discover import YamahaReceiverDiscovery
 from pyamaha import AsyncDevice, System
 from ucapi import (
     AbortDriverSetup,
@@ -296,15 +297,16 @@ async def _handle_discovery() -> RequestUserInput | SetupError:
     Process user data response from the first setup process screen.
     """
     global _setup_step  # pylint: disable=global-statement
+    _setup_step = SetupSteps.DISCOVER
 
-    discovered_devices = []  # discovery()
+    discovered_devices = YamahaReceiverDiscovery().discover()
     if len(discovered_devices) > 0:
         _LOG.debug("Found Yamaha AVRs")
 
         dropdown_devices = []
         for device in discovered_devices:
             dropdown_devices.append(
-                {"id": device.address, "label": {"en": f"{device.type}"}}
+                {"id": device.ip_address, "label": {"en": f"{device.modelname}"}}
             )
 
         dropdown_devices.append({"id": "manual", "label": {"en": "Setup Manually"}})
@@ -322,6 +324,13 @@ async def _handle_discovery() -> RequestUserInput | SetupError:
                     "id": "ip",
                     "label": {
                         "en": "Discovered AVRs:",
+                    },
+                },
+                {
+                    "field": {"text": {"value": "1"}},
+                    "id": "step",
+                    "label": {
+                        "en": "Volume Step",
                     },
                 },
             ],

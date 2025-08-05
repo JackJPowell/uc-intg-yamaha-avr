@@ -5,3 +5,4 @@ async-timeout>=5.0.1
 ssdp==1.3.0
 pyamaha-yec==0.6.1
 defusedxml==0.7.1
+ssdpy==0.4.1
