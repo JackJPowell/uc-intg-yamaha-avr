@@ -449,7 +449,7 @@ class YamahaAVR:
     def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
         volume = kwargs.get("volume", None)  # up, down, level
         volume_level = kwargs.get("volume_level", None)
-        step = int(self.device_config.volume_step)
+        step = float(self.device_config.volume_step)
 
         if step < 1:
             step = 1
