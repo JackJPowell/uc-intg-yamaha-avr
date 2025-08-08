@@ -383,17 +383,26 @@ async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupErr
             [],
         )
 
-        _LOG.info("Yamaha AVR info: %s", input_list)
+        _LOG.debug("Yamaha AVR info: %s", input_list)
+        _LOG.debug("Yamaha AVR info: %s", sound_modes)
+        _LOG.debug("Yamaha AVR info: %s", data)
+
+        device_id = data.get("serial_number", data.get("device_id"))
+        if not device_id:
+            device_id = data.get("model_name", None)
+        if not device_id:
+            _LOG.error("Could not determine device identifier from response: %s", data)
+            return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
 
         # if we are adding a new device: make sure it's not already configured
-        if _cfg_add_device and config.devices.contains(data.get("serial_number")):
-            _LOG.info(
+        if _cfg_add_device and config.devices.contains(device_id):
+            _LOG.warning(
                 "Skipping found device %s: already configured",
                 data.get("model_name"),
             )
             return SetupError(error_type=IntegrationSetupError.OTHER)
         device = YamahaDevice(
-            identifier=data.get("serial_number"),
+            identifier=device_id,
             name=data.get("model_name"),
             address=ip,
             volume_step=step,
