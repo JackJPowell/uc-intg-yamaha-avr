@@ -20,6 +20,8 @@ class SimpleCommands(str, Enum):
     NUMBER_ENTER = "Number Enter"
     RETURN = "Return"
     OPTIONS = "Options"
+    SURROUND_AI_ON = "Surround AI On"
+    SURROUND_AI_OFF = "Surround AI Off"
 
 
 class IrCodes(StrEnum):

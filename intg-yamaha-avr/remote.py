@@ -232,49 +232,78 @@ class YamahaRemote(Remote):
                             sound_mode=params.get("mode"),
                         )
                     # --- simple commands ---
-                    case SimpleCommands.SLEEP_OFF.value:
+                    case SimpleCommands.SLEEP_OFF.value | SimpleCommands.SLEEP_OFF:
                         res = await yamaha.send_command(
                             "setSleep", group="zone", zone="main", sleep="0"
                         )
-                    case SimpleCommands.SLEEP_30.value:
+                    case SimpleCommands.SLEEP_30.value | SimpleCommands.SLEEP_30:
                         res = await yamaha.send_command(
                             "setSleep", group="zone", zone="main", sleep="30"
                         )
-                    case SimpleCommands.SLEEP_60.value:
+                    case SimpleCommands.SLEEP_60.value | SimpleCommands.SLEEP_60:
                         res = await yamaha.send_command(
                             "setSleep", group="zone", zone="main", sleep="60"
                         )
-                    case SimpleCommands.SLEEP_90.value:
+                    case SimpleCommands.SLEEP_90.value | SimpleCommands.SLEEP_90:
                         res = await yamaha.send_command(
                             "setSleep", group="zone", zone="main", sleep="90"
                         )
-                    case SimpleCommands.SLEEP_120.value:
+                    case SimpleCommands.SLEEP_120.value | SimpleCommands.SLEEP_120:
                         res = await yamaha.send_command(
                             "setSleep", group="zone", zone="main", sleep="120"
                         )
-                    case SimpleCommands.HDMI_OUTPUT_1.value:
+                    case (
+                        SimpleCommands.HDMI_OUTPUT_1.value
+                        | SimpleCommands.HDMI_OUTPUT_1
+                    ):
                         res = await yamaha.send_command(
                             "setHdmiOut1", group="zone", zone="main"
                         )
-                    case SimpleCommands.HDMI_OUTPUT_2.value:
+                    case (
+                        SimpleCommands.HDMI_OUTPUT_2.value
+                        | SimpleCommands.HDMI_OUTPUT_2
+                    ):
                         res = await yamaha.send_command(
                             "setHdmiOut2", group="zone", zone="main"
                         )
-                    case SimpleCommands.SOUND_MODE_DIRECT.value:
+                    case (
+                        SimpleCommands.SOUND_MODE_DIRECT.value
+                        | SimpleCommands.SOUND_MODE_DIRECT
+                    ):
                         res = await yamaha.send_command(
                             "setDirect", group="zone", zone="main"
                         )
-                    case SimpleCommands.SOUND_MODE_PURE.value:
+                    case (
+                        SimpleCommands.SOUND_MODE_PURE.value
+                        | SimpleCommands.SOUND_MODE_PURE
+                    ):
                         res = await yamaha.send_command(
                             "setPure", group="zone", zone="main"
                         )
-                    case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
+                    case (
+                        SimpleCommands.SOUND_MODE_CLEAR_VOICE.value
+                        | SimpleCommands.SOUND_MODE_CLEAR_VOICE
+                    ):
                         res = await yamaha.send_command(
                             "setClearVoice", group="zone", zone="main"
                         )
-                    case SimpleCommands.OPTIONS.value:
+                    case SimpleCommands.OPTIONS.value | SimpleCommands.OPTIONS:
                         res = await yamaha.send_command(
                             "controlMenu", group="zone", zone="main", menu="option"
+                        )
+                    case (
+                        SimpleCommands.SURROUND_AI_ON.value
+                        | SimpleCommands.SURROUND_AI_ON
+                    ):
+                        res = await yamaha.send_command(
+                            "setSurroundAI", group="zone", zone="main", enabled="True"
+                        )
+                    case (
+                        SimpleCommands.SURROUND_AI_OFF.value
+                        | SimpleCommands.SURROUND_AI_OFF
+                    ):
+                        res = await yamaha.send_command(
+                            "setSurroundAI", group="zone", zone="main", enabled="False"
                         )
 
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
@@ -311,6 +340,8 @@ YAMAHA_REMOTE_SIMPLE_COMMANDS = [
     SimpleCommands.NUMBER_ENTER.value,
     SimpleCommands.RETURN.value,
     SimpleCommands.OPTIONS.value,
+    SimpleCommands.SURROUND_AI_ON.value,
+    SimpleCommands.SURROUND_AI_OFF.value,
 ]
 YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
@@ -572,123 +603,6 @@ YAMAHA_REMOTE_UI_PAGES = [
         ],
     },
     {
-        "page_id": "TV numbers",
-        "name": "TV numbers",
-        "grid": {"height": 4, "width": 3},
-        "items": [
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_1, "repeat": 1},
-                },
-                "location": {"x": 0, "y": 0},
-                "size": {"height": 1, "width": 1},
-                "text": "1",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_2, "repeat": 1},
-                },
-                "location": {"x": 1, "y": 0},
-                "size": {"height": 1, "width": 1},
-                "text": "2",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_3, "repeat": 1},
-                },
-                "location": {"x": 2, "y": 0},
-                "size": {"height": 1, "width": 1},
-                "text": "3",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_4, "repeat": 1},
-                },
-                "location": {"x": 0, "y": 1},
-                "size": {"height": 1, "width": 1},
-                "text": "4",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_5, "repeat": 1},
-                },
-                "location": {"x": 1, "y": 1},
-                "size": {"height": 1, "width": 1},
-                "text": "5",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_6, "repeat": 1},
-                },
-                "location": {"x": 2, "y": 1},
-                "size": {"height": 1, "width": 1},
-                "text": "6",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_7, "repeat": 1},
-                },
-                "location": {"x": 0, "y": 2},
-                "size": {"height": 1, "width": 1},
-                "text": "7",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_8, "repeat": 1},
-                },
-                "location": {"x": 1, "y": 2},
-                "size": {"height": 1, "width": 1},
-                "text": "8",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_9, "repeat": 1},
-                },
-                "location": {"x": 2, "y": 2},
-                "size": {"height": 1, "width": 1},
-                "text": "9",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": media_player.Commands.DIGIT_0, "repeat": 1},
-                },
-                "location": {"x": 1, "y": 3},
-                "size": {"height": 1, "width": 1},
-                "text": "0",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.NUMBER_ENTER, "repeat": 1},
-                },
-                "location": {"x": 2, "y": 3},
-                "size": {"height": 1, "width": 1},
-                "text": "OK",
-                "type": "text",
-            },
-        ],
-    },
-    {
         "page_id": "TV direction pad",
         "name": "TV direction pad",
         "grid": {"height": 3, "width": 3},
@@ -783,6 +697,33 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "location": {"x": 2, "y": 2},
                 "size": {"height": 1, "width": 1},
                 "text": "Exit",
+                "type": "text",
+            },
+        ],
+    },
+    {
+        "page_id": "Other",
+        "name": "Other Commands",
+        "grid": {"height": 6, "width": 4},
+        "items": [
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SURROUND_AI_ON, "repeat": 1},
+                },
+                "location": {"x": 0, "y": 0},
+                "size": {"height": 1, "width": 3},
+                "text": "Surround AI ON",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SURROUND_AI_OFF, "repeat": 1},
+                },
+                "location": {"x": 0, "y": 1},
+                "size": {"height": 1, "width": 3},
+                "text": "Surround AI OFF",
                 "type": "text",
             },
         ],

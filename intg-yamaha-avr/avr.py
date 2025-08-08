@@ -344,11 +344,6 @@ class YamahaAVR:
                                 res = await avr.request(Zone.get_status(zone))
                             case "setPower":
                                 power = kwargs["power"]  #  'on', 'standby', 'toggle'
-                                if power == "toggle":
-                                    res = await avr.request(Zone.get_status(zone))
-                                    status = await res.json()
-                                    power = status["power"]
-
                                 res = await avr.request(Zone.set_power(zone, power))
 
                                 match power:
@@ -434,6 +429,11 @@ class YamahaAVR:
                                 )
                                 self._sound_mode = "Clear Voice"
                                 update["sound_mode"] = "Clear Voice"
+                            case "setSurroundAI":
+                                enabled = kwargs["enabled"]  # True, False
+                                res = await avr.request(
+                                    Zone.set_surround_ai(zone, enable=enabled)
+                                )
 
             self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
             return res

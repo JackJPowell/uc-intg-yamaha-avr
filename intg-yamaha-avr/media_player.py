@@ -275,6 +275,19 @@ class YamahaMediaPlayer(MediaPlayer):
                     else:
                         return ucapi.StatusCodes.BAD_REQUEST
                     pattern = 0
+                case (
+                    SimpleCommands.SURROUND_AI_ON.value | SimpleCommands.SURROUND_AI_ON
+                ):
+                    res = await yamaha.send_command(
+                        "setSurroundAI", group="zone", zone="main", enabled="True"
+                    )
+                case (
+                    SimpleCommands.SURROUND_AI_OFF.value
+                    | SimpleCommands.SURROUND_AI_OFF
+                ):
+                    res = await yamaha.send_command(
+                        "setSurroundAI", group="zone", zone="main", enabled="False"
+                    )
 
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)
