@@ -329,9 +329,9 @@ class YamahaAVR:
                                 code = kwargs.get("code", "")
                                 res = await avr.request(System.send_ir_code(code))
                             case "setHdmiOut1":
-                                res = await avr.request(System.set_hdmi_out_1(True))
+                                res = await avr.request(System.set_hdmi_out_1("True"))
                             case "setHdmiOut2":
-                                res = await avr.request(System.set_hdmi_out_2(True))
+                                res = await avr.request(System.set_hdmi_out_2("True"))
                             case "setSpeakerPattern":
                                 pattern = int(kwargs["pattern"])
                                 res = await avr.request(
