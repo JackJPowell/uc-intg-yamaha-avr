@@ -713,7 +713,7 @@ YAMAHA_REMOTE_UI_PAGES = [
                 },
                 "location": {"x": 0, "y": 0},
                 "size": {"height": 1, "width": 3},
-                "text": "Surround AI ON",
+                "text": "Surround AI On",
                 "type": "text",
             },
             {
@@ -723,7 +723,7 @@ YAMAHA_REMOTE_UI_PAGES = [
                 },
                 "location": {"x": 0, "y": 1},
                 "size": {"height": 1, "width": 3},
-                "text": "Surround AI OFF",
+                "text": "Surround AI Off",
                 "type": "text",
             },
         ],

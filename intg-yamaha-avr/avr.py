@@ -414,18 +414,18 @@ class YamahaAVR:
                                 self._sound_mode = sound_mode
                                 update["sound_mode"] = sound_mode
                             case "setDirect":
-                                res = await avr.request(Zone.set_direct(zone, True))
+                                res = await avr.request(Zone.set_direct(zone, "True"))
                                 self._sound_mode = "Direct"
                                 update["sound_mode"] = "Direct"
                             case "setPureDirect":
                                 res = await avr.request(
-                                    Zone.set_pure_direct(zone, True)
+                                    Zone.set_pure_direct(zone, "True")
                                 )
                                 self._sound_mode = "Pure Direct"
                                 update["sound_mode"] = "Pure Direct"
                             case "setClearVoice":
                                 res = await avr.request(
-                                    Zone.set_clear_voice(zone, True)
+                                    Zone.set_clear_voice(zone, "True")
                                 )
                                 self._sound_mode = "Clear Voice"
                                 update["sound_mode"] = "Clear Voice"
