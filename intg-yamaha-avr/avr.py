@@ -357,7 +357,7 @@ class YamahaAVR:
                             case "setVolume":
                                 volume, step = self._calculate_volume(kwargs)
                                 res = await avr.request(
-                                    Zone.set_volume(zone, volume, step)
+                                    Zone.set_volume(zone, volume, int(step))
                                 )
                                 await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
