@@ -462,8 +462,6 @@ class YamahaAVR:
             except ValueError:
                 volume_level = 0
 
-            if volume_level > 135:
-                volume_level = 135
             volume = volume_level
             step = 1
 
