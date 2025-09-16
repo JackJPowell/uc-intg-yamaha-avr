@@ -434,6 +434,9 @@ class YamahaAVR:
                                 res = await avr.request(
                                     Zone.set_surround_ai(zone, enable=enabled)
                                 )
+                            case "setScene":
+                                scene = int(kwargs["scene"])  # 1..8
+                                res = await avr.request(Zone.set_scene(zone, scene))
 
             self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
             return res

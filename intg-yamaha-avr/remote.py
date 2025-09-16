@@ -287,6 +287,42 @@ class YamahaRemote(Remote):
                         res = await yamaha.send_command(
                             "setClearVoice", group="zone", zone="main"
                         )
+                    case SimpleCommands.SCENE_1.value | SimpleCommands.SCENE_1:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=1
+                        )
+                    case SimpleCommands.SCENE_2.value | SimpleCommands.SCENE_2:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=2
+                        )
+                    case SimpleCommands.SCENE_3.value | SimpleCommands.SCENE_3:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=3
+                        )
+                    case SimpleCommands.SCENE_4.value | SimpleCommands.SCENE_4:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=4
+                        )
+                    case SimpleCommands.SCENE_5.value | SimpleCommands.SCENE_5:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=5
+                        )
+                    case SimpleCommands.SCENE_6.value | SimpleCommands.SCENE_6:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=6
+                        )
+                    case SimpleCommands.SCENE_7.value | SimpleCommands.SCENE_7:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=7
+                        )
+                    case SimpleCommands.SCENE_8.value | SimpleCommands.SCENE_8:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=8
+                        )
+                    case SimpleCommands.SCENE_9.value | SimpleCommands.SCENE_9:
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=9
+                        )
                     case SimpleCommands.OPTIONS.value | SimpleCommands.OPTIONS:
                         res = await yamaha.send_command(
                             "controlMenu", group="zone", zone="main", menu="option"
@@ -342,6 +378,15 @@ YAMAHA_REMOTE_SIMPLE_COMMANDS = [
     SimpleCommands.OPTIONS.value,
     SimpleCommands.SURROUND_AI_ON.value,
     SimpleCommands.SURROUND_AI_OFF.value,
+    SimpleCommands.SCENE_1.value,
+    SimpleCommands.SCENE_2.value,
+    SimpleCommands.SCENE_3.value,
+    SimpleCommands.SCENE_4.value,
+    SimpleCommands.SCENE_5.value,
+    SimpleCommands.SCENE_6.value,
+    SimpleCommands.SCENE_7.value,
+    SimpleCommands.SCENE_8.value,
+    SimpleCommands.SCENE_9.value,
 ]
 YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
@@ -707,23 +752,125 @@ YAMAHA_REMOTE_UI_PAGES = [
         "grid": {"height": 6, "width": 4},
         "items": [
             {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.SURROUND_AI_ON, "repeat": 1},
-                },
                 "location": {"x": 0, "y": 0},
-                "size": {"height": 1, "width": 3},
-                "text": "Surround AI On",
+                "size": {"height": 1, "width": 4},
+                "text": "-- Surround AI --",
                 "type": "text",
             },
             {
                 "command": {
                     "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.SURROUND_AI_OFF, "repeat": 1},
+                    "params": {"command": SimpleCommands.SURROUND_AI_ON},
                 },
                 "location": {"x": 0, "y": 1},
-                "size": {"height": 1, "width": 3},
-                "text": "Surround AI Off",
+                "size": {"height": 1, "width": 2},
+                "text": "On",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SURROUND_AI_OFF},
+                },
+                "location": {"x": 2, "y": 1},
+                "size": {"height": 1, "width": 2},
+                "text": "Off",
+                "type": "text",
+            },
+            {
+                "location": {"x": 0, "y": 2},
+                "size": {"height": 1, "width": 4},
+                "text": "--Scenes--",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_1},
+                },
+                "location": {"x": 0, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "1",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_2},
+                },
+                "location": {"x": 1, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "2",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_3},
+                },
+                "location": {"x": 2, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "3",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_4},
+                },
+                "location": {"x": 3, "y": 3},
+                "size": {"height": 1, "width": 1},
+                "text": "4",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_5},
+                },
+                "location": {"x": 0, "y": 4},
+                "size": {"height": 1, "width": 1},
+                "text": "5",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_6},
+                },
+                "location": {"x": 1, "y": 4},
+                "size": {"height": 1, "width": 1},
+                "text": "6",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_7},
+                },
+                "location": {"x": 2, "y": 4},
+                "size": {"height": 1, "width": 1},
+                "text": "7",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_8},
+                },
+                "location": {"x": 3, "y": 4},
+                "size": {"height": 1, "width": 1},
+                "text": "8",
+                "type": "text",
+            },
+            {
+                "command": {
+                    "cmd_id": "remote.send",
+                    "params": {"command": SimpleCommands.SCENE_9},
+                },
+                "location": {"x": 5, "y": 0},
+                "size": {"height": 1, "width": 1},
+                "text": "9",
                 "type": "text",
             },
         ],
