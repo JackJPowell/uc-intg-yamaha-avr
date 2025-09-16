@@ -18,6 +18,7 @@ Supported versions:
 Supported attributes:
 - State (on, off, unknown)
 - Source List
+- Sound Modes
 
 Supported commands:
 - Turn on & off (device will be put into standby)
@@ -26,6 +27,8 @@ Supported commands:
 - Directional pad navigation and select
 - Context menu
 - Standard Key Commands
+- Scenes
+
 
 
 ### Network
@@ -53,6 +56,7 @@ docker run -d \
 ### Docker Compose
 
 ```
+services:
   yamaha:
     container_name: Yamaha
     image: ghcr.io/jackjpowell/uc-intg-yamaha-avr:latest
