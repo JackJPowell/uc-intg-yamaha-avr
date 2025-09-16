@@ -22,6 +22,15 @@ class SimpleCommands(str, Enum):
     OPTIONS = "Options"
     SURROUND_AI_ON = "Surround AI On"
     SURROUND_AI_OFF = "Surround AI Off"
+    SCENE_1 = "Scene 1"
+    SCENE_2 = "Scene 2"
+    SCENE_3 = "Scene 3"
+    SCENE_4 = "Scene 4"
+    SCENE_5 = "Scene 5"
+    SCENE_6 = "Scene 6"
+    SCENE_7 = "Scene 7"
+    SCENE_8 = "Scene 8"
+    SCENE_9 = "Scene 9"
 
 
 class IrCodes(StrEnum):

@@ -62,6 +62,15 @@ class YamahaMediaPlayer(MediaPlayer):
             SimpleCommands.SOUND_MODE_PURE.value,
             SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
             SimpleCommands.OPTIONS.value,
+            SimpleCommands.SCENE_1.value,
+            SimpleCommands.SCENE_2.value,
+            SimpleCommands.SCENE_3.value,
+            SimpleCommands.SCENE_4.value,
+            SimpleCommands.SCENE_5.value,
+            SimpleCommands.SCENE_6.value,
+            SimpleCommands.SCENE_7.value,
+            SimpleCommands.SCENE_8.value,
+            SimpleCommands.SCENE_9.value,
         ]
         if self._device.speaker_pattern_count > 0:
             for pattern in range(self._device.speaker_pattern_count):
@@ -266,6 +275,42 @@ class YamahaMediaPlayer(MediaPlayer):
                 case SimpleCommands.OPTIONS.value:
                     res = await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="option"
+                    )
+                case SimpleCommands.SCENE_1.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="1"
+                    )
+                case SimpleCommands.SCENE_2.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="2"
+                    )
+                case SimpleCommands.SCENE_3.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="3"
+                    )
+                case SimpleCommands.SCENE_4.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="4"
+                    )
+                case SimpleCommands.SCENE_5.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="5"
+                    )
+                case SimpleCommands.SCENE_6.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="6"
+                    )
+                case SimpleCommands.SCENE_7.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="7"
+                    )
+                case SimpleCommands.SCENE_8.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="8"
+                    )
+                case SimpleCommands.SCENE_9.value:
+                    res = await yamaha.send_command(
+                        "setScene", group="zone", zone="main", scene="9"
                     )
                 case "SPEAKER_PATTERN":
                     if int(pattern) > 0:
