@@ -4,12 +4,12 @@ Media-player entity functions.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
+import re
 import logging
 from typing import Any
 import asyncio
 import ucapi
 import ucapi.api as uc
-import re
 
 import avr
 from config import YamahaDevice, create_entity_id
@@ -50,28 +50,7 @@ class YamahaMediaPlayer(MediaPlayer):
         _LOG.debug("Yamaha AVR Media Player init")
         entity_id = create_entity_id(config_device.identifier, EntityTypes.MEDIA_PLAYER)
         self.config = config_device
-        self.options = [
-            SimpleCommands.SLEEP_OFF.value,
-            SimpleCommands.SLEEP_30.value,
-            SimpleCommands.SLEEP_60.value,
-            SimpleCommands.SLEEP_90.value,
-            SimpleCommands.SLEEP_120.value,
-            SimpleCommands.HDMI_OUTPUT_1.value,
-            SimpleCommands.HDMI_OUTPUT_2.value,
-            SimpleCommands.SOUND_MODE_DIRECT.value,
-            SimpleCommands.SOUND_MODE_PURE.value,
-            SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
-            SimpleCommands.OPTIONS.value,
-            SimpleCommands.SCENE_1.value,
-            SimpleCommands.SCENE_2.value,
-            SimpleCommands.SCENE_3.value,
-            SimpleCommands.SCENE_4.value,
-            SimpleCommands.SCENE_5.value,
-            SimpleCommands.SCENE_6.value,
-            SimpleCommands.SCENE_7.value,
-            SimpleCommands.SCENE_8.value,
-            SimpleCommands.SCENE_9.value,
-        ]
+        self.options = [cmd.value for cmd in SimpleCommands]
         if self._device.speaker_pattern_count > 0:
             for pattern in range(self._device.speaker_pattern_count):
                 self.options.extend([f"SPEAKER_PATTERN_{pattern + 1}"])
@@ -114,6 +93,7 @@ class YamahaMediaPlayer(MediaPlayer):
             "Got %s command request: %s %s", entity.id, cmd_id, params if params else ""
         )
         pattern = 0
+        scene_id = 1
         res = None
 
         yamaha = self._device
@@ -121,6 +101,10 @@ class YamahaMediaPlayer(MediaPlayer):
         if re.match("SPEAKER_PATTERN", cmd_id):
             pattern = cmd_id.split("_")[-1]
             cmd_id = "SPEAKER_PATTERN"
+
+        if re.match("SCENE_", cmd_id):
+            scene_id = cmd_id.split("_")[-1]
+            cmd_id = "SCENE"
 
         try:
             match cmd_id:
@@ -276,42 +260,13 @@ class YamahaMediaPlayer(MediaPlayer):
                     res = await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="option"
                     )
-                case SimpleCommands.SCENE_1.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="1"
-                    )
-                case SimpleCommands.SCENE_2.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="2"
-                    )
-                case SimpleCommands.SCENE_3.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="3"
-                    )
-                case SimpleCommands.SCENE_4.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="4"
-                    )
-                case SimpleCommands.SCENE_5.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="5"
-                    )
-                case SimpleCommands.SCENE_6.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="6"
-                    )
-                case SimpleCommands.SCENE_7.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="7"
-                    )
-                case SimpleCommands.SCENE_8.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="8"
-                    )
-                case SimpleCommands.SCENE_9.value:
-                    res = await yamaha.send_command(
-                        "setScene", group="zone", zone="main", scene="9"
-                    )
+                case "SCENE":
+                    if int(scene_id) in range(1, 10):
+                        res = await yamaha.send_command(
+                            "setScene", group="zone", zone="main", scene=scene_id
+                        )
+                    else:
+                        return ucapi.StatusCodes.BAD_REQUEST
                 case "SPEAKER_PATTERN":
                     if int(pattern) > 0:
                         res = await yamaha.send_command(
@@ -319,7 +274,6 @@ class YamahaMediaPlayer(MediaPlayer):
                         )
                     else:
                         return ucapi.StatusCodes.BAD_REQUEST
-                    pattern = 0
                 case (
                     SimpleCommands.SURROUND_AI_ON.value | SimpleCommands.SURROUND_AI_ON
                 ):

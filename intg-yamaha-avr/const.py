@@ -30,7 +30,6 @@ class SimpleCommands(str, Enum):
     SCENE_6 = "Scene 6"
     SCENE_7 = "Scene 7"
     SCENE_8 = "Scene 8"
-    SCENE_9 = "Scene 9"
 
 
 class IrCodes(StrEnum):

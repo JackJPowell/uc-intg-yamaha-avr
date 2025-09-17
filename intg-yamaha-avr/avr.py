@@ -447,7 +447,7 @@ class YamahaAVR:
                 command,
                 err,
             )
-            raise Exception(err) from err
+            raise Exception(err) from err  # pylint: disable=broad-exception-raised
 
     def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
         volume = kwargs.get("volume", None)  # up, down, level

@@ -4,6 +4,7 @@ Remote entity functions.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
+import re
 import asyncio
 import logging
 from typing import Any
@@ -46,7 +47,7 @@ class YamahaRemote(Remote):
             attributes={
                 Attributes.STATE: device.state,
             },
-            simple_commands=YAMAHA_REMOTE_SIMPLE_COMMANDS,
+            simple_commands=[cmd.value for cmd in SimpleCommands],
             button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,
             ui_pages=YAMAHA_REMOTE_UI_PAGES,
             cmd_handler=self.command,
@@ -95,11 +96,21 @@ class YamahaRemote(Remote):
         """Handle command."""
         command = ""
         delay = 0
+        pattern = 0
+        scene_id = 1
         res = None
 
         if params:
             command = params.get("command", "")
             delay = self.get_int_param("delay", params, 0)
+
+        if re.match("SPEAKER_PATTERN", command):
+            pattern = command.split("_")[-1]
+            command = "SPEAKER_PATTERN"
+
+        if re.match("SCENE_", command):
+            scene_id = command.split("_")[-1]
+            command = "SCENE"
 
         if command == "":
             command = f"remote.{cmd_id}"
@@ -287,42 +298,21 @@ class YamahaRemote(Remote):
                         res = await yamaha.send_command(
                             "setClearVoice", group="zone", zone="main"
                         )
-                    case SimpleCommands.SCENE_1.value | SimpleCommands.SCENE_1:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=1
-                        )
-                    case SimpleCommands.SCENE_2.value | SimpleCommands.SCENE_2:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=2
-                        )
-                    case SimpleCommands.SCENE_3.value | SimpleCommands.SCENE_3:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=3
-                        )
-                    case SimpleCommands.SCENE_4.value | SimpleCommands.SCENE_4:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=4
-                        )
-                    case SimpleCommands.SCENE_5.value | SimpleCommands.SCENE_5:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=5
-                        )
-                    case SimpleCommands.SCENE_6.value | SimpleCommands.SCENE_6:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=6
-                        )
-                    case SimpleCommands.SCENE_7.value | SimpleCommands.SCENE_7:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=7
-                        )
-                    case SimpleCommands.SCENE_8.value | SimpleCommands.SCENE_8:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=8
-                        )
-                    case SimpleCommands.SCENE_9.value | SimpleCommands.SCENE_9:
-                        res = await yamaha.send_command(
-                            "setScene", group="zone", zone="main", scene=9
-                        )
+                    case "SCENE":
+                        if int(scene_id) in range(1, 10):
+                            res = await yamaha.send_command(
+                                "setScene", group="zone", zone="main", scene=scene_id
+                            )
+                        else:
+                            return ucapi.StatusCodes.BAD_REQUEST
+                    case "SPEAKER_PATTERN":
+                        if int(pattern) > 0:
+                            res = await yamaha.send_command(
+                                "setSpeakerPattern", group="system", pattern=pattern
+                            )
+                        else:
+                            return ucapi.StatusCodes.BAD_REQUEST
+
                     case SimpleCommands.OPTIONS.value | SimpleCommands.OPTIONS:
                         res = await yamaha.send_command(
                             "controlMenu", group="zone", zone="main", menu="option"
@@ -362,33 +352,7 @@ class YamahaRemote(Remote):
         return ucapi.StatusCodes.OK
 
 
-YAMAHA_REMOTE_SIMPLE_COMMANDS = [
-    SimpleCommands.SLEEP_OFF.value,
-    SimpleCommands.SLEEP_30.value,
-    SimpleCommands.SLEEP_60.value,
-    SimpleCommands.SLEEP_90.value,
-    SimpleCommands.SLEEP_120.value,
-    SimpleCommands.HDMI_OUTPUT_1.value,
-    SimpleCommands.HDMI_OUTPUT_2.value,
-    SimpleCommands.SOUND_MODE_DIRECT.value,
-    SimpleCommands.SOUND_MODE_PURE.value,
-    SimpleCommands.SOUND_MODE_CLEAR_VOICE.value,
-    SimpleCommands.NUMBER_ENTER.value,
-    SimpleCommands.RETURN.value,
-    SimpleCommands.OPTIONS.value,
-    SimpleCommands.SURROUND_AI_ON.value,
-    SimpleCommands.SURROUND_AI_OFF.value,
-    SimpleCommands.SCENE_1.value,
-    SimpleCommands.SCENE_2.value,
-    SimpleCommands.SCENE_3.value,
-    SimpleCommands.SCENE_4.value,
-    SimpleCommands.SCENE_5.value,
-    SimpleCommands.SCENE_6.value,
-    SimpleCommands.SCENE_7.value,
-    SimpleCommands.SCENE_8.value,
-    SimpleCommands.SCENE_9.value,
-]
-YAMAHA_REMOTE_BUTTONS_MAPPING: [DeviceButtonMapping] = [
+YAMAHA_REMOTE_BUTTONS_MAPPING: list[DeviceButtonMapping] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
     {"button": Buttons.HOME, "short_press": {"cmd_id": media_player.Commands.HOME}},
     {
@@ -861,16 +825,6 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "location": {"x": 3, "y": 4},
                 "size": {"height": 1, "width": 1},
                 "text": "8",
-                "type": "text",
-            },
-            {
-                "command": {
-                    "cmd_id": "remote.send",
-                    "params": {"command": SimpleCommands.SCENE_9},
-                },
-                "location": {"x": 5, "y": 0},
-                "size": {"height": 1, "width": 1},
-                "text": "9",
                 "type": "text",
             },
         ],
