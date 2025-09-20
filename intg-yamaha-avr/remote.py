@@ -108,8 +108,8 @@ class YamahaRemote(Remote):
             pattern = command.split("_")[-1]
             command = "SPEAKER_PATTERN"
 
-        if re.match("SCENE_", command):
-            scene_id = command.split("_")[-1]
+        if re.match("SCENE ", command, re.IGNORECASE):
+            scene_id = command.split(" ")[-1]
             command = "SCENE"
 
         if command == "":
@@ -289,7 +289,7 @@ class YamahaRemote(Remote):
                         | SimpleCommands.SOUND_MODE_PURE
                     ):
                         res = await yamaha.send_command(
-                            "setPure", group="zone", zone="main"
+                            "setPureDirect", group="zone", zone="main"
                         )
                     case (
                         SimpleCommands.SOUND_MODE_CLEAR_VOICE.value

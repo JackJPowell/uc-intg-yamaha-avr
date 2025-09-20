@@ -102,8 +102,8 @@ class YamahaMediaPlayer(MediaPlayer):
             pattern = cmd_id.split("_")[-1]
             cmd_id = "SPEAKER_PATTERN"
 
-        if re.match("SCENE_", cmd_id):
-            scene_id = cmd_id.split("_")[-1]
+        if re.match("SCENE", cmd_id, re.IGNORECASE):
+            scene_id = cmd_id.split(" ")[-1]
             cmd_id = "SCENE"
 
         try:
@@ -250,7 +250,7 @@ class YamahaMediaPlayer(MediaPlayer):
                     )
                 case SimpleCommands.SOUND_MODE_PURE.value:
                     res = await yamaha.send_command(
-                        "setPure", group="zone", zone="main"
+                        "setPureDirect", group="zone", zone="main"
                     )
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
                     res = await yamaha.send_command(
