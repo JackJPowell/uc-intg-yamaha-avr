@@ -237,13 +237,9 @@ class YamahaMediaPlayer(MediaPlayer):
                         "setSleep", group="zone", zone="main", sleep="120"
                     )
                 case SimpleCommands.HDMI_OUTPUT_1.value:
-                    res = await yamaha.send_command(
-                        "setHdmiOut1", group="zone", zone="main"
-                    )
+                    res = await yamaha.send_command("setHdmiOut1", group="system")
                 case SimpleCommands.HDMI_OUTPUT_2.value:
-                    res = await yamaha.send_command(
-                        "setHdmiOut2", group="zone", zone="main"
-                    )
+                    res = await yamaha.send_command("setHdmiOut2", group="system")
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
                     res = await yamaha.send_command(
                         "setDirect", group="zone", zone="main"

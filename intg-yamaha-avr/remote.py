@@ -112,28 +112,12 @@ class YamahaRemote(Remote):
             scene_id = command.split(" ")[-1]
             command = "SCENE"
 
-        if command == "":
-            command = f"remote.{cmd_id}"
-
         _LOG.info("Got command request: %s %s", cmd_id, params if params else "")
 
         yamaha = self._device
         res = None
         try:
-            if command == "remote.on":
-                _LOG.debug("Sending ON command to AVR")
-                res = await yamaha.send_command(
-                    "setPower", group="zone", zone="main", power="on"
-                )
-            elif command == "remote.off":
-                res = await yamaha.send_command(
-                    "setPower", group="zone", zone="main", power="standby"
-                )
-            elif command == "remote.toggle":
-                res = await yamaha.send_command(
-                    "setPower", group="zone", zone="main", power="toggle"
-                )
-            elif cmd_id == Commands.SEND_CMD:
+            if cmd_id == Commands.SEND_CMD:
                 match command:
                     case media_player.Commands.ON:
                         _LOG.debug("Sending ON command to AVR")
@@ -267,16 +251,12 @@ class YamahaRemote(Remote):
                         SimpleCommands.HDMI_OUTPUT_1.value
                         | SimpleCommands.HDMI_OUTPUT_1
                     ):
-                        res = await yamaha.send_command(
-                            "setHdmiOut1", group="zone", zone="main"
-                        )
+                        res = await yamaha.send_command("setHdmiOut1", group="system")
                     case (
                         SimpleCommands.HDMI_OUTPUT_2.value
                         | SimpleCommands.HDMI_OUTPUT_2
                     ):
-                        res = await yamaha.send_command(
-                            "setHdmiOut2", group="zone", zone="main"
-                        )
+                        res = await yamaha.send_command("setHdmiOut2", group="system")
                     case (
                         SimpleCommands.SOUND_MODE_DIRECT.value
                         | SimpleCommands.SOUND_MODE_DIRECT
