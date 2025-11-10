@@ -197,7 +197,7 @@ class YamahaAVR:
     async def _connect(self) -> None:
         """Connect to the device."""
         _LOG.debug(
-            "[%s] Connecting to TVWS device at IP address: %s",
+            "[%s] Connecting to Yamaha AVR at IP address: %s",
             self.log_id,
             self.address,
         )
@@ -206,13 +206,13 @@ class YamahaAVR:
                 avr = AsyncDevice(session, self.address)
                 res = await avr.request(Zone.get_status(self.zone))
                 status = await res.json()
-                self._state = status.get("power")
+                self._state = status.get("power", PowerState.OFF)
         except aiohttp.ClientError as err:
             _LOG.error("[%s] Connection error: %s", self.log_id, err)
             self._state = PowerState.OFF
 
     async def _update_attributes(self) -> None:
-        _LOG.debug("[%s] Updating app list", self.log_id)
+        _LOG.debug("[%s] Updating attributes", self.log_id)
         update = {}
 
         async with aiohttp.ClientSession() as session:
@@ -220,13 +220,17 @@ class YamahaAVR:
                 avr = AsyncDevice(session, self.address)
                 status = await avr.request(Zone.get_status(zone=self.zone))
                 status = await status.json()
-                self._state = status.get("power")
+                self._state = status.get("power", PowerState.OFF)
                 self._muted = status.get("mute", False)
                 self._active_source = status.get("input", "")
                 self._active_source_text = status.get("input_text", "")
                 self._sound_mode = status.get("sound_program", None)
                 self._volume_level = status.get("volume", 0.0)
-                self._volume_mode = status.get("actual_volume", {}).get("mode", "")
+
+                # Safely extract nested actual_volume data
+                actual_volume = status.get("actual_volume", {})
+                if actual_volume and isinstance(actual_volume, dict):
+                    self._volume_mode = actual_volume.get("mode", "")
 
                 self._features = await avr.request(System.get_features())
                 self._features = await self._features.json()
@@ -251,14 +255,16 @@ class YamahaAVR:
                         for item in range_steps
                         if item["id"] == "volume"
                     )
-                except Exception as err:  # pylint: disable=broad-exception-caught
-                    _LOG.warning("Failed to extract volume range: %s", err)
+                except (StopIteration, KeyError) as err:
+                    _LOG.warning(
+                        "[%s] Failed to extract volume range: %s", self.log_id, err
+                    )
 
             except Exception as err:  # pylint: disable=broad-exception-caught
                 _LOG.error("[%s] Error retrieving status: %s", self.log_id, err)
 
-        if self._source_list is None or len(self._source_list) == 0:
-            _LOG.error("[%s] Unable to retrieve app list. Using default", self.log_id)
+        if not self._source_list:
+            _LOG.warning("[%s] No input list configured, using defaults", self.log_id)
             self._source_list = [
                 "tuner",
                 "hdmi1",
@@ -333,12 +339,26 @@ class YamahaAVR:
                             case "setHdmiOut2":
                                 res = await avr.request(System.set_hdmi_out_2("True"))
                             case "setSpeakerPattern":
-                                pattern = int(kwargs["pattern"])
+                                pattern = kwargs.get("pattern")
+                                if pattern is None:
+                                    _LOG.error(
+                                        "[%s] Missing 'pattern' parameter for setSpeakerPattern",
+                                        self.log_id,
+                                    )
+                                    raise ValueError(
+                                        "Missing required parameter 'pattern'"
+                                    )
                                 res = await avr.request(
-                                    System.set_speaker_pattern(pattern)
+                                    System.set_speaker_pattern(int(pattern))
                                 )
                     case "zone":
-                        zone = kwargs["zone"]  #  'main', 'zone2', 'zone3', 'zone4'
+                        zone = kwargs.get("zone")
+                        if zone is None:
+                            _LOG.error(
+                                "[%s] Missing 'zone' parameter for zone command",
+                                self.log_id,
+                            )
+                            raise ValueError("Missing required parameter 'zone'")
                         match command:
                             case "getStatus":
                                 res = await avr.request(Zone.get_status(zone))
@@ -362,9 +382,12 @@ class YamahaAVR:
                                 await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
-                                self._volume_level = status.get("actual_volume").get(
-                                    "value"
-                                )
+
+                                # Safely extract volume value
+                                actual_volume = status.get("actual_volume", {})
+                                if actual_volume and isinstance(actual_volume, dict):
+                                    self._volume_level = actual_volume.get("value", 0.0)
+
                                 update["volume"] = self.volume
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
@@ -440,14 +463,30 @@ class YamahaAVR:
 
             self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
             return res
-        except Exception as err:  # pylint: disable=broad-exception-caught
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOG.error(
-                "[%s] Error sending command %s: %s",
+                "[%s] Network error sending command %s: %s",
                 self.log_id,
                 command,
                 err,
             )
-            raise Exception(err) from err  # pylint: disable=broad-exception-raised
+            raise
+        except ValueError as err:
+            _LOG.error(
+                "[%s] Invalid parameter for command %s: %s",
+                self.log_id,
+                command,
+                err,
+            )
+            raise
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            _LOG.error(
+                "[%s] Unexpected error sending command %s: %s",
+                self.log_id,
+                command,
+                err,
+            )
+            raise
 
     def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
         volume = kwargs.get("volume", None)  # up, down, level
