@@ -101,7 +101,6 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
                 api.configured_entities.update_attributes(
                     entity_id, {media_player.Attributes.STATE: state}
                 )
-                # await device.connect()
                 continue
 
         device = config.devices.get(device_id)
@@ -117,17 +116,15 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
 async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
     """On unsubscribe, we disconnect the objects and remove listeners for events."""
     _LOG.debug("Unsubscribe entities event: %s", entity_ids)
+    _LOG.debug("Unsubscribe entities event: %s", entity_ids)
     for entity_id in entity_ids:
-        device_id = device_from_entity_id(entity_id)
-        if device_id is None:
-            continue
-        if device_id in _configured_devices:
-            _configured_devices[device_id].events.remove_all_listeners()
-        else:
-            _LOG.warning(
-                "Device %s not found in configured devices during unsubscribe",
-                device_id,
+        if entity_id in _configured_devices:
+            device = _configured_devices.pop(entity_id)
+            _LOG.info(
+                "Removed '%s' from configured devices and disconnect", device.name
             )
+            await device.disconnect()
+            device.events.remove_all_listeners()
 
 
 async def on_device_connected(device_id: str):
@@ -399,7 +396,6 @@ def on_device_removed(device: YamahaDevice | None) -> None:
     if device is None:
         _LOG.info("Configuration cleared, removing all configured device instances")
         for device_instance in _configured_devices.values():
-            # _LOOP.create_task(device_instance.disconnect(continue_polling=False))
             device_instance.events.remove_all_listeners()
         _configured_devices.clear()
         api.configured_entities.clear()
@@ -408,7 +404,6 @@ def on_device_removed(device: YamahaDevice | None) -> None:
         if device.identifier in _configured_devices:
             _LOG.info("Removing device %s (%s)", device.identifier, device.name)
             device_instance = _configured_devices.pop(device.identifier)
-            # _LOOP.create_task(device_instance.disconnect(continue_polling=False))
             device_instance.events.remove_all_listeners()
             # Remove both media_player and remote entities
             for entity_id in _entities_from_device_id(device.identifier):
@@ -433,8 +428,6 @@ async def main():
     config.devices = config.Devices(
         api.config_dir_path, on_device_added, on_device_removed
     )
-    # best effort migration (if required): network might not be available during startup
-    # await config.devices.migrate()
 
     for device_config in config.devices.all():
         _add_configured_device(device_config)
