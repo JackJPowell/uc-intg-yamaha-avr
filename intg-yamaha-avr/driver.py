@@ -116,15 +116,33 @@ async def on_subscribe_entities(entity_ids: list[str]) -> None:
 async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
     """On unsubscribe, we disconnect the objects and remove listeners for events."""
     _LOG.debug("Unsubscribe entities event: %s", entity_ids)
-    _LOG.debug("Unsubscribe entities event: %s", entity_ids)
+
+    # Track which devices need to be checked
+    devices_to_check = set()
+
     for entity_id in entity_ids:
-        if entity_id in _configured_devices:
-            device = _configured_devices.pop(entity_id)
-            _LOG.info(
-                "Removed '%s' from configured devices and disconnect", device.name
-            )
-            await device.disconnect()
-            device.events.remove_all_listeners()
+        device_id = device_from_entity_id(entity_id)
+        if device_id is not None and device_id in _configured_devices:
+            devices_to_check.add(device_id)
+
+    # For each device, check if any of its entities are still configured
+    for device_id in devices_to_check:
+        device_entities = _entities_from_device_id(device_id)
+        any_entity_configured = any(
+            api.configured_entities.get(entity_id) is not None
+            for entity_id in device_entities
+        )
+
+        if not any_entity_configured:
+            # No entities are configured anymore, disconnect and cleanup
+            device = _configured_devices.get(device_id)
+            if device:
+                _LOG.info(
+                    "No entities configured for '%s', disconnecting and cleaning up",
+                    device.name,
+                )
+                await device.disconnect()
+                device.events.remove_all_listeners()
 
 
 async def on_device_connected(device_id: str):
