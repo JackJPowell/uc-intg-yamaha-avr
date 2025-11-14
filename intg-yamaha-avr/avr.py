@@ -11,7 +11,7 @@ from typing import Any, ParamSpec, TypeVar
 
 import aiohttp
 
-from pyamaha import AsyncDevice, System, Zone
+from pyamaha import AsyncDevice, System, Zone, Tuner
 from config import YamahaDevice
 from pyee.asyncio import AsyncIOEventEmitter
 from ucapi.media_player import Attributes as MediaAttr
@@ -460,6 +460,34 @@ class YamahaAVR:
                             case "setScene":
                                 scene = int(kwargs["scene"])  # 1..8
                                 res = await avr.request(Zone.set_scene(zone, scene))
+                    case "tuner":
+                        match command:
+                            case "recallPreset":
+                                band = kwargs.get("band")
+                                num = kwargs.get("num")
+                                zone = kwargs.get("zone", "main")
+                                if band is None or num is None:
+                                    _LOG.error(
+                                        "[%s] Missing 'band' or 'num' parameter for recallPreset",
+                                        self.log_id,
+                                    )
+                                    raise ValueError(
+                                        "Missing required parameters 'band' and 'num'"
+                                    )
+                                res = await avr.request(
+                                    Tuner.recall_preset(zone=zone, band=band, num=int(num))
+                                )
+                            case "switchPreset":
+                                direction = kwargs.get("direction")
+                                if direction is None:
+                                    _LOG.error(
+                                        "[%s] Missing 'direction' parameter for switchPreset",
+                                        self.log_id,
+                                    )
+                                    raise ValueError(
+                                        "Missing required parameter 'direction'"
+                                    )
+                                res = await avr.request(Tuner.switch_preset(direction))
 
             self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
             return res

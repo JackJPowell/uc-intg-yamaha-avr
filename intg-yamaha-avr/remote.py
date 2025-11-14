@@ -311,6 +311,68 @@ class YamahaRemote(Remote):
                         res = await yamaha.send_command(
                             "setSurroundAI", group="zone", zone="main", enabled="False"
                         )
+                    case (
+                        SimpleCommands.FM_1.value
+                        | SimpleCommands.FM_1
+                        | SimpleCommands.FM_2.value
+                        | SimpleCommands.FM_2
+                        | SimpleCommands.FM_3.value
+                        | SimpleCommands.FM_3
+                        | SimpleCommands.FM_4.value
+                        | SimpleCommands.FM_4
+                        | SimpleCommands.FM_5.value
+                        | SimpleCommands.FM_5
+                        | SimpleCommands.FM_6.value
+                        | SimpleCommands.FM_6
+                        | SimpleCommands.FM_7.value
+                        | SimpleCommands.FM_7
+                        | SimpleCommands.FM_8.value
+                        | SimpleCommands.FM_8
+                        | SimpleCommands.FM_9.value
+                        | SimpleCommands.FM_9
+                        | SimpleCommands.FM_10.value
+                        | SimpleCommands.FM_10
+                    ):
+                        # Extract the preset number from the command (e.g., "FM 5" -> 5)
+                        preset_num = command.split()[-1]
+                        res = await yamaha.send_command(
+                            "recallPreset", group="tuner", band="fm", num=preset_num
+                        )
+                    case (
+                        SimpleCommands.DAB_1.value
+                        | SimpleCommands.DAB_1
+                        | SimpleCommands.DAB_2.value
+                        | SimpleCommands.DAB_2
+                        | SimpleCommands.DAB_3.value
+                        | SimpleCommands.DAB_3
+                        | SimpleCommands.DAB_4.value
+                        | SimpleCommands.DAB_4
+                        | SimpleCommands.DAB_5.value
+                        | SimpleCommands.DAB_5
+                        | SimpleCommands.DAB_6.value
+                        | SimpleCommands.DAB_6
+                        | SimpleCommands.DAB_7.value
+                        | SimpleCommands.DAB_7
+                        | SimpleCommands.DAB_8.value
+                        | SimpleCommands.DAB_8
+                        | SimpleCommands.DAB_9.value
+                        | SimpleCommands.DAB_9
+                        | SimpleCommands.DAB_10.value
+                        | SimpleCommands.DAB_10
+                    ):
+                        # Extract the preset number from the command (e.g., "DAB 5" -> 5)
+                        preset_num = command.split()[-1]
+                        res = await yamaha.send_command(
+                            "recallPreset", group="tuner", band="dab", num=preset_num
+                        )
+                    case SimpleCommands.TUNER_NEXT.value | SimpleCommands.TUNER_NEXT:
+                        res = await yamaha.send_command(
+                            "switchPreset", group="tuner", direction="next"
+                        )
+                    case SimpleCommands.TUNER_PREV.value | SimpleCommands.TUNER_PREV:
+                        res = await yamaha.send_command(
+                            "switchPreset", group="tuner", direction="previous"
+                        )
 
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
                 commands = params.get("sequence", [])

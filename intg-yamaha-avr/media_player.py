@@ -283,6 +283,48 @@ class YamahaMediaPlayer(MediaPlayer):
                     res = await yamaha.send_command(
                         "setSurroundAI", group="zone", zone="main", enabled="False"
                     )
+                case (
+                    SimpleCommands.FM_1.value
+                    | SimpleCommands.FM_2.value
+                    | SimpleCommands.FM_3.value
+                    | SimpleCommands.FM_4.value
+                    | SimpleCommands.FM_5.value
+                    | SimpleCommands.FM_6.value
+                    | SimpleCommands.FM_7.value
+                    | SimpleCommands.FM_8.value
+                    | SimpleCommands.FM_9.value
+                    | SimpleCommands.FM_10.value
+                ):
+                    # Extract the preset number from the command (e.g., "FM 5" -> 5)
+                    preset_num = cmd_id.split()[-1]
+                    res = await yamaha.send_command(
+                        "recallPreset", group="tuner", band="fm", num=preset_num
+                    )
+                case (
+                    SimpleCommands.DAB_1.value
+                    | SimpleCommands.DAB_2.value
+                    | SimpleCommands.DAB_3.value
+                    | SimpleCommands.DAB_4.value
+                    | SimpleCommands.DAB_5.value
+                    | SimpleCommands.DAB_6.value
+                    | SimpleCommands.DAB_7.value
+                    | SimpleCommands.DAB_8.value
+                    | SimpleCommands.DAB_9.value
+                    | SimpleCommands.DAB_10.value
+                ):
+                    # Extract the preset number from the command (e.g., "DAB 5" -> 5)
+                    preset_num = cmd_id.split()[-1]
+                    res = await yamaha.send_command(
+                        "recallPreset", group="tuner", band="dab", num=preset_num
+                    )
+                case SimpleCommands.TUNER_NEXT.value:
+                    res = await yamaha.send_command(
+                        "switchPreset", group="tuner", direction="next"
+                    )
+                case SimpleCommands.TUNER_PREV.value:
+                    res = await yamaha.send_command(
+                        "switchPreset", group="tuner", direction="previous"
+                    )
 
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)
