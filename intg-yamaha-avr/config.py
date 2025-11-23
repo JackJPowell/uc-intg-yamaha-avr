@@ -1,37 +1,15 @@
 """
 Configuration handling of the integration driver.
 
-:copyright: (c) 2023-2024 by Unfolded Circle ApS.
+:copyright: (c) 2025 by Jack Powell.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import dataclasses
-import json
 import logging
-import os
-from asyncio import Lock
 from dataclasses import dataclass
-from typing import Iterator
-from ucapi import EntityTypes
+from ucapi_framework import BaseDeviceManager
 
 _LOG = logging.getLogger(__name__)
-
-_CFG_FILENAME = "config.json"
-
-
-def create_entity_id(device_id: str, entity_type: EntityTypes) -> str:
-    """Create a unique entity identifier for the given receiver and entity type."""
-    return f"{entity_type.value}.{device_id}"
-
-
-def device_from_entity_id(entity_id: str) -> str | None:
-    """
-    Return the id prefix of an entity_id.
-
-    :param entity_id: the entity identifier
-    :return: the device prefix, or None if entity_id doesn't contain a dot
-    """
-    return entity_id.split(".", 1)[1]
 
 
 @dataclass
@@ -52,156 +30,20 @@ class YamahaDevice:
     """List of sound modes for the device, if available."""
 
 
-class _EnhancedJSONEncoder(json.JSONEncoder):
-    """Python dataclass json encoder."""
+class YamahaDeviceManager(BaseDeviceManager[YamahaDevice]):
+    """Configuration manager for Yamaha devices."""
 
-    def default(self, o):
-        if dataclasses.is_dataclass(o):
-            return dataclasses.asdict(o)
-        return super().default(o)
-
-
-class Devices:
-    """Integration driver configuration class. Manages all configured Apple TV devices."""
-
-    def __init__(self, data_path: str, add_handler, remove_handler):
-        """
-        Create a configuration instance for the given configuration path.
-
-        :param data_path: configuration path for the configuration file and client certificates.
-        """
-        self._data_path: str = data_path
-        self._cfg_file_path: str = os.path.join(data_path, _CFG_FILENAME)
-        self._config: list[YamahaDevice] = []
-        self._add_handler = add_handler
-        self._remove_handler = remove_handler
-        self.load()
-        self._config_lock = Lock()
-
-    @property
-    def data_path(self) -> str:
-        """Return the configuration path."""
-        return self._data_path
-
-    def all(self) -> Iterator[YamahaDevice]:
-        """Get an iterator for all device configurations."""
-        return iter(self._config)
-
-    def contains(self, device_id: str) -> bool:
-        """Check if there's a device with the given device identifier."""
-        for item in self._config:
-            if item.identifier == device_id:
-                return True
-        return False
-
-    def add_or_update(self, device: YamahaDevice) -> None:
-        """
-        Add a new configured Apple TV device and persist configuration.
-
-        The device is updated if it already exists in the configuration.
-        """
-        # duplicate check
-        if not self.update(device):
-            self._config.append(device)
-            self.store()
-            if self._add_handler is not None:
-                self._add_handler(device)
-
-    def get(self, device_id: str) -> YamahaDevice | None:
-        """Get device configuration for given identifier."""
-        for item in self._config:
-            if item.identifier == device_id:
-                # return a copy
-                return dataclasses.replace(item)
-        return None
-
-    def update(self, device: YamahaDevice) -> bool:
-        """Update a configured Yamaha TV device and persist configuration."""
-        for item in self._config:
-            if item.identifier == device.identifier:
-                item.address = device.address
-                item.name = device.name
-                item.input_list = device.input_list
-                item.volume_step = device.volume_step
-                item.sound_modes = device.sound_modes
-                return self.store()
-        return False
-
-    def remove(self, device_id: str) -> bool:
-        """Remove the given device configuration."""
-        device = self.get(device_id)
-        if device is None:
-            return False
+    def deserialize_device(self, data: dict) -> YamahaDevice | None:
+        """Deserialize Yamaha device from JSON."""
         try:
-            self._config.remove(device)
-            if self._remove_handler is not None:
-                self._remove_handler(device)
-            return True
-        except ValueError:
-            pass
-        return False
-
-    def clear(self) -> None:
-        """Remove the configuration file."""
-        self._config = []
-
-        if os.path.exists(self._cfg_file_path):
-            os.remove(self._cfg_file_path)
-
-        if self._remove_handler is not None:
-            self._remove_handler(None)
-
-    def store(self) -> bool:
-        """
-        Store the configuration file.
-
-        :return: True if the configuration could be saved.
-        """
-        try:
-            with open(self._cfg_file_path, "w+", encoding="utf-8") as f:
-                json.dump(self._config, f, ensure_ascii=False, cls=_EnhancedJSONEncoder)
-            return True
-        except OSError as err:
-            _LOG.error("Cannot write the config file: %s", err)
-
-        return False
-
-    def load(self) -> bool:
-        """
-        Load the config into the config global variable.
-
-        :return: True if the configuration could be loaded.
-        """
-        try:
-            with open(self._cfg_file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            for item in data:
-                # not using YamahaDevice(**item) to be able to migrate
-                # old configuration files with missing attributes
-                device = YamahaDevice(
-                    item.get("identifier"),
-                    item.get("name", ""),
-                    item.get("address"),
-                    item.get("input_list", []),
-                    item.get("volume_step", "1"),
-                    item.get("sound_modes", None),
-                )
-                self._config.append(device)
-            return True
-        except OSError as err:
-            _LOG.error("Cannot open the config file: %s", err)
-        except (AttributeError, ValueError, TypeError) as err:
-            _LOG.error("Empty or invalid config file: %s", err)
-
-        return False
-
-    def migration_required(self) -> bool:
-        """Check if configuration migration is required."""
-        return False
-
-    async def migrate(self) -> bool:
-        """Migrate configuration if required."""
-        return True
-
-
-devices: Devices | None = None
+            return YamahaDevice(
+                identifier=data["identifier"],
+                name=data.get("name", "Yamaha Device"),
+                address=data["address"],
+                input_list=data.get("input_list"),
+                volume_step=data.get("volume_step", "1"),
+                sound_modes=data.get("sound_modes"),
+            )
+        except (KeyError, TypeError) as ex:
+            _LOG.error("Failed to deserialize Yamaha device: %s", ex)
+            return None

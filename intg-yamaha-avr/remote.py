@@ -10,7 +10,8 @@ import logging
 from typing import Any
 
 import ucapi
-from config import YamahaDevice, create_entity_id
+from config import YamahaDevice
+from ucapi_framework import create_entity_id
 from ucapi import EntityTypes, Remote, StatusCodes, media_player
 from ucapi.media_player import States as MediaStates
 from ucapi.remote import Attributes, Commands, Features

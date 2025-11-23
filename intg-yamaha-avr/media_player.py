@@ -12,7 +12,8 @@ import ucapi
 import ucapi.api as uc
 
 import avr
-from config import YamahaDevice, create_entity_id
+from config import YamahaDevice
+from ucapi_framework import create_entity_id
 from const import SimpleCommands
 from ucapi import MediaPlayer, media_player, EntityTypes
 from ucapi.media_player import DeviceClasses, Attributes
@@ -22,7 +23,6 @@ asyncio.set_event_loop(_LOOP)
 
 _LOG = logging.getLogger(__name__)
 api = uc.IntegrationAPI(_LOOP)
-_configured_devices: dict[str, avr.YamahaAVR] = {}
 
 features = [
     media_player.Features.ON_OFF,

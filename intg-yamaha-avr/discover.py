@@ -1,58 +1,66 @@
 """Discover Yamaha Receivers in local network using SSDP"""
 
 import logging
-from dataclasses import dataclass
 import re
-from ssdpy import SSDPClient
+from ucapi_framework import DiscoveredDevice
+from ucapi_framework.discovery import SSDPDiscovery
+
+_LOG = logging.getLogger("discover")
 
 
-_LOG = logging.getLogger("discover")  # avoid having __main__ in log messages
+class YamahaReceiverDiscovery(SSDPDiscovery):
+    """Discover Yamaha Receivers in local network using SSDP."""
 
+    def is_yamaha_device(self, raw_device: dict) -> bool:
+        """
+        Filter to identify Yamaha AVR devices.
 
-@dataclass
-class YamahaReceiverDetails:
-    """Class to hold details about Yamaha Receiver discovered via SSDP"""
+        :param raw_device: Raw SSDP device data
+        :return: True if device is a Yamaha AVR
+        """
+        model_name = raw_device.get("x-modelname", "")
+        # Check if model name contains Yamaha AVR patterns
+        return bool(re.search(r"RX-|R-N", model_name))
 
-    modelname: str = None
-    ip_address: str = None
+    def parse_ssdp_device(self, raw_device: dict) -> DiscoveredDevice | None:
+        """
+        Parse raw SSDP device data into DiscoveredDevice.
 
-
-class YamahaReceiverDiscovery:
-    """Class to discover Yamaha Receivers in local network using SSDP"""
-
-    def __init__(self):
-        self.receivers: list[YamahaReceiverDetails] = []
-
-    def __repr__(self):
-        return f"YamahaReceiverDiscovery(receivers={self.receivers})"
-
-    def discover(self, timeout=2) -> list[YamahaReceiverDetails]:
-        """Crude SSDP discovery. Returns a list of RxvDetails objects
-        with data about Yamaha Receivers in local network"""
-        _LOG.info("Discovering Yamaha AVRs in local network")
-        client = SSDPClient(timeout=timeout)
-        devices = client.m_search("ssdp:all")
-
-        receiver: YamahaReceiverDetails = YamahaReceiverDetails()
-        media_renderers = [
-            device
-            for device in devices
-            if device.get("st") == "urn:schemas-upnp-org:device:MediaRenderer:1"
-        ]
-        _LOG.info("Found %d MediaRenderer devices", len(media_renderers))
-
-        for device in media_renderers:
-            _LOG.debug("Found device: %s", device)
-            match = re.search(r"http://([\d\.]+):", device.get("location", ""))
-            receiver.ip_address = match.group(1) if match else None
-            if not receiver.ip_address:
-                continue
-            match = re.search(r"RX-|R-N", device.get("x-modelname", ""))
+        :param raw_device: Raw SSDP device data
+        :return: DiscoveredDevice or None if parsing fails
+        """
+        try:
+            # Extract IP address from location URL
+            location = raw_device.get("location", "")
+            match = re.search(r"http://([\d\.]+):", location)
             if not match:
-                continue
-            receiver.modelname = device.get("x-modelname").split(":")[0]
-            _LOG.info("%s - %s", device["location"], device.get("x-modelname"))
-            self.receivers.append(receiver)
-            receiver = YamahaReceiverDetails()
+                _LOG.debug("Could not extract IP from location: %s", location)
+                return None
 
-        return self.receivers
+            ip_address = match.group(1)
+
+            # Extract model name
+            model_name = raw_device.get("x-modelname", "Unknown Yamaha AVR")
+            # Clean up model name (remove anything after colon)
+            model_name = model_name.split(":")[0]
+
+            # Use model name + IP as identifier (or extract serial if available)
+            # You might want to fetch more info from the device to get a real serial number
+            identifier = f"yamaha_{ip_address.replace('.', '_')}"
+
+            _LOG.info("Discovered Yamaha AVR: %s at %s", model_name, ip_address)
+
+            return DiscoveredDevice(
+                identifier=identifier,
+                name=model_name,
+                address=ip_address,
+                extra_data={
+                    "location": location,
+                    "model_name": model_name,
+                    "raw_data": raw_device,
+                },
+            )
+
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            _LOG.error("Failed to parse SSDP device: %s", err)
+            return None
