@@ -10,9 +10,8 @@ from enum import StrEnum
 from typing import Any
 
 import aiohttp
-
-from pyamaha import AsyncDevice, System, Zone, Tuner
-from config import YamahaDevice
+from const import YamahaDevice
+from pyamaha import AsyncDevice, System, Tuner, Zone
 from ucapi.media_player import Attributes as MediaAttr
 from ucapi_framework import StatelessHTTPDevice
 from ucapi_framework.device import DeviceEvents
@@ -155,12 +154,6 @@ class YamahaAVR(StatelessHTTPDevice):
             self._state = status.get("power", PowerState.OFF)
             _LOG.debug("[%s] Device state: %s", self.log_id, self._state)
 
-    async def disconnect(self) -> None:
-        """Disconnect from device (mark as disconnected)."""
-        _LOG.debug("[%s] Disconnecting from device", self.log_id)
-        self._is_connected = False
-        self.events.emit(DeviceEvents.DISCONNECTED, self.identifier)
-
     async def connect(self) -> None:
         """Establish connection to the AVR."""
         # Use the base class connect which calls verify_connection
@@ -243,17 +236,17 @@ class YamahaAVR(StatelessHTTPDevice):
             ]
 
         try:
-            update["state"] = self.state
+            update[MediaAttr.STATE] = self.state
 
             source_text = self.source.upper()
             if self._active_source_text:
                 source_text = self._active_source_text
-            update["source"] = source_text
-            update["muted"] = self.muted
-            update["source_list"] = self.source_list
-            update["sound_mode"] = self.sound_mode
-            update["sound_mode_list"] = self.sound_mode_list
-            update["volume"] = self.volume
+            update[MediaAttr.SOURCE] = source_text
+            update[MediaAttr.MUTED] = self.muted
+            update[MediaAttr.SOURCE_LIST] = self.source_list
+            update[MediaAttr.SOUND_MODE] = self.sound_mode
+            update[MediaAttr.SOUND_MODE_LIST] = self.sound_mode_list
+            update[MediaAttr.VOLUME] = self.volume
 
         except Exception:  # pylint: disable=broad-exception-caught
             _LOG.exception("[%s] App list: protocol error", self.log_id)
@@ -325,9 +318,9 @@ class YamahaAVR(StatelessHTTPDevice):
 
                                 match power:
                                     case "on":
-                                        update["state"] = PowerState.ON
+                                        update[MediaAttr.STATE] = PowerState.ON
                                     case "standby":
-                                        update["state"] = PowerState.STANDBY
+                                        update[MediaAttr.STATE] = PowerState.STANDBY
                             case "setSleep":
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
@@ -345,7 +338,7 @@ class YamahaAVR(StatelessHTTPDevice):
                                 if actual_volume and isinstance(actual_volume, dict):
                                     self._volume_level = actual_volume.get("value", 0.0)
 
-                                update["volume"] = self.volume
+                                update[MediaAttr.VOLUME] = self.volume
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
                                 if mute == "toggle":
@@ -357,7 +350,7 @@ class YamahaAVR(StatelessHTTPDevice):
                                     mute = not current_status["mute"]
                                 res = await avr.request(Zone.set_mute(zone, mute))
                                 self._muted = mute
-                                update["muted"] = mute
+                                update[MediaAttr.MUTED] = mute
                             case "controlCursor":
                                 cursor = kwargs["cursor"]
                                 res = await avr.request(
@@ -384,7 +377,7 @@ class YamahaAVR(StatelessHTTPDevice):
                                 ):  # We have the new source
                                     self._active_source_text = status.get("input_text")
 
-                                update["source"] = self._active_source_text
+                                update[MediaAttr.SOURCE] = self._active_source_text
                             case "setSoundMode":
                                 sound_mode = kwargs["sound_mode"]
                                 sound_mode = sound_mode.lower()
@@ -392,23 +385,23 @@ class YamahaAVR(StatelessHTTPDevice):
                                     Zone.set_sound_program(zone, sound_mode)
                                 )
                                 self._sound_mode = sound_mode
-                                update["sound_mode"] = sound_mode
+                                update[MediaAttr.SOUND_MODE] = sound_mode
                             case "setDirect":
                                 res = await avr.request(Zone.set_direct(zone, "True"))
                                 self._sound_mode = "Direct"
-                                update["sound_mode"] = "Direct"
+                                update[MediaAttr.SOUND_MODE] = "Direct"
                             case "setPureDirect":
                                 res = await avr.request(
                                     Zone.set_pure_direct(zone, "True")
                                 )
                                 self._sound_mode = "Pure Direct"
-                                update["sound_mode"] = "Pure Direct"
+                                update[MediaAttr.SOUND_MODE] = "Pure Direct"
                             case "setClearVoice":
                                 res = await avr.request(
                                     Zone.set_clear_voice(zone, "True")
                                 )
                                 self._sound_mode = "Clear Voice"
-                                update["sound_mode"] = "Clear Voice"
+                                update[MediaAttr.SOUND_MODE] = "Clear Voice"
                             case "setSurroundAI":
                                 enabled = kwargs["enabled"]  # True, False
                                 res = await avr.request(

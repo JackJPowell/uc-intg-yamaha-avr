@@ -1,7 +1,7 @@
 """
 Setup flow for Yamaha AVR Remote integration.
 
-:copyright: (c) 2023-2024 by Unfolded Circle ApS.
+:copyright: (c) 2023-2024 by Jack Powell
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 import aiohttp
-from config import YamahaDevice
+from const import YamahaDevice
 from pyamaha import AsyncDevice, System
 from ucapi import IntegrationSetupError, RequestUserInput
 from ucapi_framework import BaseSetupFlow

@@ -2,6 +2,7 @@
 
 import logging
 import re
+
 from ucapi_framework import DiscoveredDevice
 from ucapi_framework.discovery import SSDPDiscovery
 

@@ -4,25 +4,18 @@ Media-player entity functions.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import re
 import logging
+import re
 from typing import Any
-import asyncio
-import ucapi
-import ucapi.api as uc
 
 import avr
-from config import YamahaDevice
+import ucapi
+from const import SimpleCommands, YamahaDevice
+from ucapi import EntityTypes, MediaPlayer, media_player
+from ucapi.media_player import Attributes, DeviceClasses
 from ucapi_framework import create_entity_id
-from const import SimpleCommands
-from ucapi import MediaPlayer, media_player, EntityTypes
-from ucapi.media_player import DeviceClasses, Attributes
-
-_LOOP = asyncio.new_event_loop()
-asyncio.set_event_loop(_LOOP)
 
 _LOG = logging.getLogger(__name__)
-api = uc.IntegrationAPI(_LOOP)
 
 features = [
     media_player.Features.ON_OFF,
@@ -330,9 +323,3 @@ class YamahaMediaPlayer(MediaPlayer):
             _LOG.error("Error executing command %s: %s", cmd_id, ex)
             return ucapi.StatusCodes.BAD_REQUEST
         return ucapi.StatusCodes.OK
-
-
-def _get_cmd_param(name: str, params: dict[str, Any] | None) -> str | bool | None:
-    if params is None:
-        return None
-    return params.get(name)
