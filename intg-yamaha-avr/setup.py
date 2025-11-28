@@ -11,7 +11,7 @@ from typing import Any
 import aiohttp
 from const import YamahaDevice
 from pyamaha import AsyncDevice, System
-from ucapi import IntegrationSetupError, RequestUserInput
+from ucapi import IntegrationSetupError, RequestUserInput, SetupError
 from ucapi_framework import BaseSetupFlow
 
 _LOG = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ _MANUAL_INPUT_SCHEMA = RequestUserInput(
         },
         {
             "field": {"text": {"value": ""}},
-            "id": "ip",
+            "id": "address",
             "label": {
                 "en": "IP Address",
             },
@@ -59,49 +59,33 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
     Handles Yamaha AVR configuration through SSDP discovery or manual entry.
     """
 
-    async def create_device_from_discovery(
-        self, device_id: str, additional_data: dict[str, Any]
-    ) -> YamahaDevice:
+    def get_manual_entry_form(self) -> RequestUserInput:
         """
-        Create Yamaha device configuration from discovered device.
+        Get the manual entry form for Yamaha AVR setup.
 
-        :param device_id: Discovered device identifier
-        :param additional_data: Additional user input data (e.g., volume step)
-        :return: Yamaha device configuration
-        :raises IntegrationSetupError: If device setup fails
+        :return: RequestUserInput for manual entry
         """
-        # Look up the discovered device using the framework's helper
-        discovered = self.get_discovered_devices(device_id)
+        return _MANUAL_INPUT_SCHEMA
 
-        if not discovered:
-            _LOG.error("Discovered device %s not found", device_id)
-            raise IntegrationSetupError("Device not found")
+    def get_additional_discovery_fields(self) -> list[dict]:
+        """
+        Return additional fields for discovery-based setup.
 
-        ip = discovered.address
-        step = additional_data.get("step", "1")
+        :return: List of dictionaries defining additional fields
+        """
+        return [
+            {
+                "field": {"text": {"value": "1"}},
+                "id": "step",
+                "label": {
+                    "en": "Volume Step",
+                },
+            }
+        ]
 
-        return await self._create_device_from_ip(ip, step)
-
-    async def create_device_from_manual_entry(
+    async def query_device(
         self, input_values: dict[str, Any]
-    ) -> YamahaDevice | RequestUserInput:
-        """
-        Create Yamaha device configuration from manual entry.
-
-        :param input_values: User input containing 'ip' and 'volume_step'
-        :return: Yamaha device configuration or RequestUserInput to re-display form
-        """
-        ip = input_values.get("ip", "").strip()
-        step = input_values.get("step", "1")
-
-        if not ip:
-            # Re-display the form if IP is missing
-            _LOG.warning("IP address is required, re-displaying form")
-            return _MANUAL_INPUT_SCHEMA
-
-        return await self._create_device_from_ip(ip, step)
-
-    async def _create_device_from_ip(self, ip: str, volume_step: str) -> YamahaDevice:
+    ) -> YamahaDevice | SetupError | RequestUserInput:
         """
         Helper method to create device configuration from IP address.
 
@@ -110,11 +94,13 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
         :return: Yamaha device configuration
         :raises IntegrationSetupError: If device setup fails
         """
-        _LOG.debug("Connecting to Yamaha AVR at %s", ip)
+        address = input_values.get("address")
+        step = input_values.get("step", "1")
+        _LOG.debug("Connecting to Yamaha AVR at %s", address)
 
         try:
             async with aiohttp.ClientSession(conn_timeout=2) as client:
-                dev = AsyncDevice(client, ip)
+                dev = AsyncDevice(client, address)
                 res = await dev.request(System.get_device_info())
                 data = await res.json()
                 res = await dev.request(System.get_features())
@@ -161,23 +147,15 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
             return YamahaDevice(
                 identifier=device_id,
                 name=data.get("model_name"),
-                address=ip,
-                volume_step=volume_step,
+                address=address,
+                volume_step=step,
                 input_list=input_list,
                 sound_modes=sound_modes,
             )
 
         except aiohttp.ClientError as err:
-            _LOG.error("Connection error to Yamaha AVR at %s: %s", ip, err)
+            _LOG.error("Connection error to Yamaha AVR at %s: %s", address, err)
             raise IntegrationSetupError("Could not connect to device") from err
         except Exception as err:  # pylint: disable=broad-except
-            _LOG.error("Setup error for Yamaha AVR at %s: %s", ip, err)
+            _LOG.error("Setup error for Yamaha AVR at %s: %s", address, err)
             raise IntegrationSetupError("Device setup failed") from err
-
-    def get_manual_entry_form(self) -> RequestUserInput:
-        """
-        Get the manual entry form for Yamaha AVR setup.
-
-        :return: RequestUserInput for manual entry
-        """
-        return _MANUAL_INPUT_SCHEMA

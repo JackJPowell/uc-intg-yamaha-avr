@@ -31,7 +31,10 @@ class YamahaAVR(StatelessHTTPDevice):
     """Representing an Yamaha AVR Device."""
 
     def __init__(
-        self, device: YamahaDevice, loop: AbstractEventLoop | None = None
+        self,
+        device: YamahaDevice,
+        loop: AbstractEventLoop | None = None,
+        config_manager=None,
     ) -> None:
         """Create instance."""
         super().__init__(device, loop)

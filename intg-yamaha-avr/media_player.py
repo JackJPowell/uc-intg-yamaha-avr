@@ -87,7 +87,6 @@ class YamahaMediaPlayer(MediaPlayer):
         )
         pattern = 0
         scene_id = 1
-        res = None
 
         yamaha = self._device
 
@@ -103,106 +102,106 @@ class YamahaMediaPlayer(MediaPlayer):
             match cmd_id:
                 case media_player.Commands.ON:
                     _LOG.debug("Sending ON command to AVR")
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="on"
                     )
                 case media_player.Commands.OFF:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="standby"
                     )
                 case media_player.Commands.TOGGLE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="toggle"
                     )
                 case media_player.Commands.VOLUME_UP:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="up"
                     )
                 case media_player.Commands.VOLUME_DOWN:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="down"
                     )
                 case media_player.Commands.VOLUME:
                     volume_level = params.get("volume")
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setVolume",
                         group="zone",
                         zone="main",
                         volume_level=volume_level,
                     )
                 case media_player.Commands.MUTE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute=True
                     )
                 case media_player.Commands.UNMUTE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute=False
                     )
                 case media_player.Commands.MUTE_TOGGLE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute="toggle"
                     )
                 case media_player.Commands.CURSOR_UP:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="up"
                     )
                 case media_player.Commands.CURSOR_DOWN:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="down"
                     )
                 case media_player.Commands.CURSOR_LEFT:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="left"
                     )
                 case media_player.Commands.CURSOR_RIGHT:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="right"
                     )
                 case media_player.Commands.CURSOR_ENTER:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="select"
                     )
                 case media_player.Commands.BACK | SimpleCommands.RETURN.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="return"
                     )
                 case media_player.Commands.INFO:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="display"
                     )
                 case media_player.Commands.SETTINGS:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="on_screen"
                     )
                 case media_player.Commands.HOME:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="home"
                     )
                 case media_player.Commands.FUNCTION_RED:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="red"
                     )
                 case media_player.Commands.FUNCTION_GREEN:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="green"
                     )
                 case media_player.Commands.FUNCTION_YELLOW:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="yellow"
                     )
                 case media_player.Commands.FUNCTION_BLUE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="blue"
                     )
                 case media_player.Commands.SELECT_SOURCE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setInput",
                         group="zone",
                         zone="main",
                         input_source=params.get("source"),
                     )
                 case media_player.Commands.SELECT_SOUND_MODE:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSoundMode",
                         group="zone",
                         zone="main",
@@ -210,55 +209,53 @@ class YamahaMediaPlayer(MediaPlayer):
                     )
                 # --- simple commands ---
                 case SimpleCommands.SLEEP_OFF.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="0"
                     )
                 case SimpleCommands.SLEEP_30.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="30"
                     )
                 case SimpleCommands.SLEEP_60.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="60"
                     )
                 case SimpleCommands.SLEEP_90.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="90"
                     )
                 case SimpleCommands.SLEEP_120.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="120"
                     )
                 case SimpleCommands.HDMI_OUTPUT_1.value:
-                    res = await yamaha.send_command("setHdmiOut1", group="system")
+                    await yamaha.send_command("setHdmiOut1", group="system")
                 case SimpleCommands.HDMI_OUTPUT_2.value:
-                    res = await yamaha.send_command("setHdmiOut2", group="system")
+                    await yamaha.send_command("setHdmiOut2", group="system")
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
-                    res = await yamaha.send_command(
-                        "setDirect", group="zone", zone="main"
-                    )
+                    await yamaha.send_command("setDirect", group="zone", zone="main")
                 case SimpleCommands.SOUND_MODE_PURE.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setPureDirect", group="zone", zone="main"
                     )
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setClearVoice", group="zone", zone="main"
                     )
                 case SimpleCommands.OPTIONS.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="option"
                     )
                 case "SCENE":
                     if int(scene_id) in range(1, 10):
-                        res = await yamaha.send_command(
+                        await yamaha.send_command(
                             "setScene", group="zone", zone="main", scene=scene_id
                         )
                     else:
                         return ucapi.StatusCodes.BAD_REQUEST
                 case "SPEAKER_PATTERN":
                     if int(pattern) > 0:
-                        res = await yamaha.send_command(
+                        await yamaha.send_command(
                             "setSpeakerPattern", group="system", pattern=pattern
                         )
                     else:
@@ -266,14 +263,14 @@ class YamahaMediaPlayer(MediaPlayer):
                 case (
                     SimpleCommands.SURROUND_AI_ON.value | SimpleCommands.SURROUND_AI_ON
                 ):
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSurroundAI", group="zone", zone="main", enabled="True"
                     )
                 case (
                     SimpleCommands.SURROUND_AI_OFF.value
                     | SimpleCommands.SURROUND_AI_OFF
                 ):
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "setSurroundAI", group="zone", zone="main", enabled="False"
                     )
                 case (
@@ -290,7 +287,7 @@ class YamahaMediaPlayer(MediaPlayer):
                 ):
                     # Extract the preset number from the command (e.g., "FM 5" -> 5)
                     preset_num = cmd_id.split()[-1]
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "recallPreset", group="tuner", band="fm", num=preset_num
                     )
                 case (
@@ -307,15 +304,15 @@ class YamahaMediaPlayer(MediaPlayer):
                 ):
                     # Extract the preset number from the command (e.g., "DAB 5" -> 5)
                     preset_num = cmd_id.split()[-1]
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "recallPreset", group="tuner", band="dab", num=preset_num
                     )
                 case SimpleCommands.TUNER_NEXT.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "switchPreset", group="tuner", direction="next"
                     )
                 case SimpleCommands.TUNER_PREV.value:
-                    res = await yamaha.send_command(
+                    await yamaha.send_command(
                         "switchPreset", group="tuner", direction="previous"
                     )
 
