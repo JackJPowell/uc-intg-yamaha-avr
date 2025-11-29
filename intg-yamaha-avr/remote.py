@@ -4,20 +4,20 @@ Remote entity functions.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import re
 import asyncio
 import logging
+import re
 from typing import Any
 
+import avr
 import ucapi
-from config import YamahaDevice, create_entity_id
+from const import SimpleCommands, YamahaDevice
 from ucapi import EntityTypes, Remote, StatusCodes, media_player
 from ucapi.media_player import States as MediaStates
 from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
-from ucapi.ui import DeviceButtonMapping, Buttons
-import avr
-from const import SimpleCommands
+from ucapi.ui import Buttons, DeviceButtonMapping
+from ucapi_framework import create_entity_id
 
 _LOG = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class YamahaRemote(Remote):
         """Initialize the class."""
         self._device: avr.YamahaAVR = device
         _LOG.debug("Yamaha AVR Remote init")
-        entity_id = create_entity_id(config_device.identifier, EntityTypes.REMOTE)
+        entity_id = create_entity_id(EntityTypes.REMOTE, config_device.identifier)
         features = [Features.SEND_CMD, Features.ON_OFF, Features.TOGGLE]
         super().__init__(
             entity_id,
