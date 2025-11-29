@@ -41,7 +41,7 @@ class YamahaMediaPlayer(MediaPlayer):
         """Initialize the class."""
         self._device = device
         _LOG.debug("Yamaha AVR Media Player init")
-        entity_id = create_entity_id(config_device.identifier, EntityTypes.MEDIA_PLAYER)
+        entity_id = create_entity_id(EntityTypes.MEDIA_PLAYER, config_device.identifier)
         self.config = config_device
         self.options = [cmd.value for cmd in SimpleCommands]
         if self._device.speaker_pattern_count > 0:

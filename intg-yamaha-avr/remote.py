@@ -38,7 +38,7 @@ class YamahaRemote(Remote):
         """Initialize the class."""
         self._device: avr.YamahaAVR = device
         _LOG.debug("Yamaha AVR Remote init")
-        entity_id = create_entity_id(config_device.identifier, EntityTypes.REMOTE)
+        entity_id = create_entity_id(EntityTypes.REMOTE, config_device.identifier)
         features = [Features.SEND_CMD, Features.ON_OFF, Features.TOGGLE]
         super().__init__(
             entity_id,

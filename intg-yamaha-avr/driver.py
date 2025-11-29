@@ -45,7 +45,7 @@ async def main():
     )
 
     for device in list(driver.config.all()):
-        driver.add_configured_device(device, connect=False)
+        driver.add_configured_device(device)
 
     discovery = YamahaReceiverDiscovery(
         timeout=2,
@@ -57,8 +57,7 @@ async def main():
 
     await driver.api.init("driver.json", setup_handler)
 
-    while True:
-        await asyncio.sleep(3600)
+    await asyncio.Future()
 
 
 if __name__ == "__main__":

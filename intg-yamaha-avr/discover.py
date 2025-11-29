@@ -12,7 +12,8 @@ _LOG = logging.getLogger("discover")
 class YamahaReceiverDiscovery(SSDPDiscovery):
     """Discover Yamaha Receivers in local network using SSDP."""
 
-    def is_yamaha_device(self, raw_device: dict) -> bool:
+    @staticmethod
+    def is_yamaha_device(raw_device: dict) -> bool:
         """
         Filter to identify Yamaha AVR devices.
 

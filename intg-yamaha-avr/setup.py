@@ -89,17 +89,20 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
         """
         Helper method to create device configuration from IP address.
 
-        :param ip: Device IP address
-        :param volume_step: Volume step size
+        :param input_values: Dictionary containing 'address' (device IP address) and 'step' (volume step size).
         :return: Yamaha device configuration
         :raises IntegrationSetupError: If device setup fails
         """
         address = input_values.get("address")
         step = input_values.get("step", "1")
+        if not address:
+            raise IntegrationSetupError("IP address is required")
         _LOG.debug("Connecting to Yamaha AVR at %s", address)
 
         try:
-            async with aiohttp.ClientSession(conn_timeout=2) as client:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=2)
+            ) as client:
                 dev = AsyncDevice(client, address)
                 res = await dev.request(System.get_device_info())
                 data = await res.json()
