@@ -38,7 +38,7 @@ class YamahaAVR(StatelessHTTPDevice):
         config_manager=None,
     ) -> None:
         """Create instance."""
-        super().__init__(device, loop)
+        super().__init__(device, loop, config_manager=config_manager)
         self._yamaha_avr: AsyncDevice | None = None
         self._connection_attempts: int = 0
         self._state: PowerState = PowerState.OFF
