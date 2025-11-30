@@ -12,8 +12,9 @@ from typing import Any
 import aiohttp
 from const import YamahaDevice
 from pyamaha import AsyncDevice, System, Tuner, Zone
+from ucapi import EntityTypes
 from ucapi.media_player import Attributes as MediaAttr
-from ucapi_framework import StatelessHTTPDevice
+from ucapi_framework import StatelessHTTPDevice, create_entity_id
 from ucapi_framework.device import DeviceEvents
 
 _LOG = logging.getLogger(__name__)
@@ -254,7 +255,11 @@ class YamahaAVR(StatelessHTTPDevice):
         except Exception:  # pylint: disable=broad-exception-caught
             _LOG.exception("[%s] App list: protocol error", self.log_id)
 
-        self.events.emit(DeviceEvents.UPDATE, self.identifier, update)
+        self.events.emit(
+            DeviceEvents.UPDATE,
+            create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
+            update,
+        )
 
     async def send_command(
         self, command: str, group: str, *args: Any, **kwargs: Any
@@ -444,7 +449,11 @@ class YamahaAVR(StatelessHTTPDevice):
                                     )
                                 res = await avr.request(Tuner.switch_preset(direction))
 
-            self.events.emit(DeviceEvents.UPDATE, self.identifier, update)
+            self.events.emit(
+                DeviceEvents.UPDATE,
+                create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
+                update,
+            )
             return res
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOG.error(
