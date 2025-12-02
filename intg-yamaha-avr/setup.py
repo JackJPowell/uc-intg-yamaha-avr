@@ -9,7 +9,7 @@ import logging
 from typing import Any
 
 import aiohttp
-from const import YamahaDevice
+from const import YamahaConfig
 from pyamaha import AsyncDevice, System
 from ucapi import IntegrationSetupError, RequestUserInput, SetupError
 from ucapi_framework import BaseSetupFlow
@@ -52,7 +52,7 @@ _MANUAL_INPUT_SCHEMA = RequestUserInput(
 )
 
 
-class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
+class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
     """
     Setup flow for Yamaha AVR integration.
 
@@ -85,7 +85,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
 
     async def query_device(
         self, input_values: dict[str, Any]
-    ) -> YamahaDevice | SetupError | RequestUserInput:
+    ) -> YamahaConfig | SetupError | RequestUserInput:
         """
         Helper method to create device configuration from IP address.
 
@@ -147,7 +147,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaDevice]):
                 )
                 raise IntegrationSetupError("Device already configured")
 
-            return YamahaDevice(
+            return YamahaConfig(
                 identifier=device_id,
                 name=data.get("model_name"),
                 address=address,

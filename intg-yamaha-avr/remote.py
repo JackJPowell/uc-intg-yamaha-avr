@@ -9,9 +9,9 @@ import logging
 import re
 from typing import Any
 
-import avr
+from avr import YamahaAVR
 import ucapi
-from const import SimpleCommands, YamahaDevice
+from const import SimpleCommands, YamahaConfig
 from ucapi import EntityTypes, Remote, StatusCodes, media_player
 from ucapi.media_player import States as MediaStates
 from ucapi.remote import Attributes, Commands, Features
@@ -34,9 +34,9 @@ YAMAHA_REMOTE_STATE_MAPPING = {
 class YamahaRemote(Remote):
     """Representation of a Yamaha AVR Remote entity."""
 
-    def __init__(self, config_device: YamahaDevice, device: avr.YamahaAVR):
+    def __init__(self, config_device: YamahaConfig, device: YamahaAVR):
         """Initialize the class."""
-        self._device: avr.YamahaAVR = device
+        self._device: YamahaAVR = device
         _LOG.debug("Yamaha AVR Remote init")
         entity_id = create_entity_id(EntityTypes.REMOTE, config_device.identifier)
         features = [Features.SEND_CMD, Features.ON_OFF, Features.TOGGLE]

@@ -8,9 +8,9 @@ import logging
 import re
 from typing import Any
 
-import avr
+from avr import YamahaAVR
 import ucapi
-from const import SimpleCommands, YamahaDevice
+from const import SimpleCommands, YamahaConfig
 from ucapi import EntityTypes, MediaPlayer, media_player
 from ucapi.media_player import Attributes, DeviceClasses
 from ucapi_framework import create_entity_id
@@ -37,7 +37,7 @@ features = [
 class YamahaMediaPlayer(MediaPlayer):
     """Representation of a Yamaha MediaPlayer entity."""
 
-    def __init__(self, config_device: YamahaDevice, device: avr.YamahaAVR):
+    def __init__(self, config_device: YamahaConfig, device: YamahaAVR):
         """Initialize the class."""
         self._device = device
         _LOG.debug("Yamaha AVR Media Player init")

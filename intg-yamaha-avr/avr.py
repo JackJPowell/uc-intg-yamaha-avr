@@ -10,7 +10,7 @@ from enum import StrEnum
 from typing import Any
 
 import aiohttp
-from const import YamahaDevice
+from const import YamahaConfig
 from pyamaha import AsyncDevice, System, Tuner, Zone
 from ucapi import EntityTypes
 from ucapi.media_player import Attributes as MediaAttr
@@ -33,12 +33,12 @@ class YamahaAVR(StatelessHTTPDevice):
 
     def __init__(
         self,
-        device: YamahaDevice,
+        device_config: YamahaConfig,
         loop: AbstractEventLoop | None = None,
         config_manager=None,
     ) -> None:
         """Create instance."""
-        super().__init__(device, loop, config_manager=config_manager)
+        super().__init__(device_config, loop, config_manager=config_manager)
         self._yamaha_avr: AsyncDevice | None = None
         self._connection_attempts: int = 0
         self._state: PowerState = PowerState.OFF

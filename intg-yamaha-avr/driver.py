@@ -11,12 +11,12 @@ import logging
 import os
 
 from avr import YamahaAVR
-from const import YamahaDevice
+from const import YamahaConfig
 from discover import YamahaReceiverDiscovery
 from media_player import YamahaMediaPlayer
 from remote import YamahaRemote
 from setup import YamahaSetupFlow
-from ucapi_framework import BaseDeviceManager, BaseIntegrationDriver, get_config_path
+from ucapi_framework import BaseConfigManager, BaseIntegrationDriver, get_config_path
 
 
 async def main():
@@ -29,23 +29,19 @@ async def main():
     logging.getLogger("discover").setLevel(level)
     logging.getLogger("setup").setLevel(level)
 
-    loop = asyncio.get_running_loop()
-
     driver = BaseIntegrationDriver(
-        loop=loop,
         device_class=YamahaAVR,
         entity_classes=[YamahaMediaPlayer, YamahaRemote],
     )
 
-    driver.config = BaseDeviceManager(
+    driver.config_manager = BaseConfigManager(
         get_config_path(driver.api.config_dir_path),
         driver.on_device_added,
         driver.on_device_removed,
-        device_class=YamahaDevice,
+        config_class=YamahaConfig,
     )
 
-    for device in list(driver.config.all()):
-        driver.add_configured_device(device)
+    await driver.register_all_configured_devices()
 
     discovery = YamahaReceiverDiscovery(
         timeout=2,
@@ -53,8 +49,7 @@ async def main():
         device_filter=YamahaReceiverDiscovery.is_yamaha_device,
     )
 
-    setup_handler = YamahaSetupFlow.create_handler(driver.config, discovery)
-
+    setup_handler = YamahaSetupFlow.create_handler(driver, discovery=discovery)
     await driver.api.init("driver.json", setup_handler)
 
     await asyncio.Future()
