@@ -6,35 +6,18 @@ This module implements the Yamaha AVR communication of the Remote Two integratio
 import asyncio
 import logging
 from asyncio import AbstractEventLoop
-from enum import StrEnum, IntEnum
-from typing import Any, ParamSpec, TypeVar
+from enum import StrEnum
+from typing import Any
 
 import aiohttp
-
-from pyamaha import AsyncDevice, System, Zone, Tuner
-from config import YamahaDevice
-from pyee.asyncio import AsyncIOEventEmitter
+from const import YamahaConfig
+from pyamaha import AsyncDevice, System, Tuner, Zone
+from ucapi import EntityTypes
 from ucapi.media_player import Attributes as MediaAttr
+from ucapi_framework import StatelessHTTPDevice, create_entity_id
+from ucapi_framework.device import DeviceEvents
 
 _LOG = logging.getLogger(__name__)
-
-BACKOFF_MAX = 30
-BACKOFF_SEC = 2
-
-
-class EVENTS(IntEnum):
-    """Internal driver events."""
-
-    CONNECTING = 0
-    CONNECTED = 1
-    DISCONNECTED = 2
-    PAIRED = 3
-    ERROR = 4
-    UPDATE = 5
-
-
-_YamahaAvrT = TypeVar("_YamahaAvrT", bound="YamahaAVR")
-_P = ParamSpec("_P")
 
 
 class PowerState(StrEnum):
@@ -45,21 +28,21 @@ class PowerState(StrEnum):
     STANDBY = "STANDBY"
 
 
-class YamahaAVR:
+class YamahaAVR(StatelessHTTPDevice):
     """Representing an Yamaha AVR Device."""
 
     def __init__(
-        self, device: YamahaDevice, loop: AbstractEventLoop | None = None
+        self,
+        device_config: YamahaConfig,
+        loop: AbstractEventLoop | None = None,
+        config_manager=None,
     ) -> None:
         """Create instance."""
-        self._loop: AbstractEventLoop = loop or asyncio.get_running_loop()
-        self.events = AsyncIOEventEmitter(self._loop)
-        self._is_connected: bool = False
+        super().__init__(device_config, loop, config_manager=config_manager)
         self._yamaha_avr: AsyncDevice | None = None
-        self._device: YamahaDevice = device
         self._connection_attempts: int = 0
         self._state: PowerState = PowerState.OFF
-        self._source_list: list[str] = self._device.input_list or []
+        self._source_list: list[str] = self._device_config.input_list or []
         self._volume_level: float = 0.0
         self._min_volume_level: int = 0
         self._max_volume_level: int = 161
@@ -68,37 +51,36 @@ class YamahaAVR:
         self._zone: str = "main"
         self._muted: bool = False
         self._sound_mode: str = ""
-        self._sound_mode_list: list[str] = self._device.sound_modes or []
+        self._sound_mode_list: list[str] = self._device_config.sound_modes or []
         self._speaker_pattern_count: int = 4
         self._features: dict = {}
         self._volume_mode: str = ""
 
     @property
-    def device_config(self) -> YamahaDevice:
-        """Return the device configuration."""
-        return self._device
-
-    @property
     def identifier(self) -> str:
         """Return the device identifier."""
-        if not self._device.identifier:
+        if not self._device_config.identifier:
             raise ValueError("Instance not initialized, no identifier available")
-        return self._device.identifier
+        return self._device_config.identifier
 
     @property
     def log_id(self) -> str:
         """Return a log identifier."""
-        return self._device.name if self._device.name else self._device.identifier
+        return (
+            self._device_config.name
+            if self._device_config.name
+            else self._device_config.identifier
+        )
 
     @property
     def name(self) -> str:
         """Return the device name."""
-        return self._device.name
+        return self._device_config.name
 
     @property
     def address(self) -> str | None:
         """Return the optional device address."""
-        return self._device.address
+        return self._device_config.address
 
     @property
     def state(self) -> PowerState | None:
@@ -157,59 +139,31 @@ class YamahaAVR:
         """Return the current volume level."""
         return self._volume_level
 
-    async def connect(self) -> None:
-        """Establish connection to the AVR."""
-        if self.state != PowerState.OFF:
-            return
+    async def verify_connection(self) -> None:
+        """
+        Verify the device connection.
 
-        _LOG.debug("[%s] Connecting to device", self.log_id)
-        self.events.emit(EVENTS.CONNECTING, self._device.identifier)
-        await self._connect_setup()
-
-    async def _connect_setup(self) -> None:
-        try:
-            await self._connect()
-
-            if self.state != PowerState.OFF:
-                _LOG.debug("[%s] Device is alive", self.log_id)
-                self.events.emit(
-                    EVENTS.UPDATE, self._device.identifier, {"state": self.state}
-                )
-            else:
-                _LOG.debug("[%s] Device is not alive", self.log_id)
-                self.events.emit(
-                    EVENTS.UPDATE,
-                    self._device.identifier,
-                    {"state": PowerState.OFF},
-                )
-        except asyncio.CancelledError:
-            pass
-        except Exception as err:  # pylint: disable=broad-exception-caught
-            _LOG.error("[%s] Could not connect: %s", self.log_id, err)
-        finally:
-            _LOG.debug("[%s] Connect setup finished", self.log_id)
-
-        self.events.emit(EVENTS.CONNECTED, self._device.identifier)
-        _LOG.debug("[%s] Connected", self.log_id)
-
-        await self._update_attributes()
-
-    async def _connect(self) -> None:
-        """Connect to the device."""
+        Makes a simple status request to verify device is reachable.
+        Raises exception if connection fails.
+        """
         _LOG.debug(
-            "[%s] Connecting to Yamaha AVR at IP address: %s",
+            "[%s] Verifying connection to Yamaha AVR at IP address: %s",
             self.log_id,
             self.address,
         )
-        try:
-            async with aiohttp.ClientSession() as session:
-                avr = AsyncDevice(session, self.address)
-                res = await avr.request(Zone.get_status(self.zone))
-                status = await res.json()
-                self._state = status.get("power", PowerState.OFF)
-        except aiohttp.ClientError as err:
-            _LOG.error("[%s] Connection error: %s", self.log_id, err)
-            self._state = PowerState.OFF
+        async with aiohttp.ClientSession() as session:
+            avr = AsyncDevice(session, self.address)
+            res = await avr.request(Zone.get_status(self.zone))
+            status = await res.json()
+            self._state = status.get("power", PowerState.OFF)
+            _LOG.debug("[%s] Device state: %s", self.log_id, self._state)
+
+    async def connect(self) -> None:
+        """Establish connection to the AVR."""
+        # Use the base class connect which calls verify_connection
+        await super().connect()
+        # After connection is verified, update attributes
+        await self._update_attributes()
 
     async def _update_attributes(self) -> None:
         _LOG.debug("[%s] Updating attributes", self.log_id)
@@ -286,22 +240,26 @@ class YamahaAVR:
             ]
 
         try:
-            update["state"] = self.state
+            update[MediaAttr.STATE] = self.state
 
             source_text = self.source.upper()
             if self._active_source_text:
                 source_text = self._active_source_text
-            update["source"] = source_text
-            update["muted"] = self.muted
-            update["source_list"] = self.source_list
-            update["sound_mode"] = self.sound_mode
-            update["sound_mode_list"] = self.sound_mode_list
-            update["volume"] = self.volume
+            update[MediaAttr.SOURCE] = source_text
+            update[MediaAttr.MUTED] = self.muted
+            update[MediaAttr.SOURCE_LIST] = self.source_list
+            update[MediaAttr.SOUND_MODE] = self.sound_mode
+            update[MediaAttr.SOUND_MODE_LIST] = self.sound_mode_list
+            update[MediaAttr.VOLUME] = self.volume
 
         except Exception:  # pylint: disable=broad-exception-caught
             _LOG.exception("[%s] App list: protocol error", self.log_id)
 
-        self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
+        self.events.emit(
+            DeviceEvents.UPDATE,
+            create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
+            update,
+        )
 
     async def send_command(
         self, command: str, group: str, *args: Any, **kwargs: Any
@@ -368,9 +326,9 @@ class YamahaAVR:
 
                                 match power:
                                     case "on":
-                                        update["state"] = PowerState.ON
+                                        update[MediaAttr.STATE] = PowerState.ON
                                     case "standby":
-                                        update["state"] = PowerState.STANDBY
+                                        update[MediaAttr.STATE] = PowerState.STANDBY
                             case "setSleep":
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
@@ -388,7 +346,7 @@ class YamahaAVR:
                                 if actual_volume and isinstance(actual_volume, dict):
                                     self._volume_level = actual_volume.get("value", 0.0)
 
-                                update["volume"] = self.volume
+                                update[MediaAttr.VOLUME] = self.volume
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
                                 if mute == "toggle":
@@ -400,7 +358,7 @@ class YamahaAVR:
                                     mute = not current_status["mute"]
                                 res = await avr.request(Zone.set_mute(zone, mute))
                                 self._muted = mute
-                                update["muted"] = mute
+                                update[MediaAttr.MUTED] = mute
                             case "controlCursor":
                                 cursor = kwargs["cursor"]
                                 res = await avr.request(
@@ -427,7 +385,7 @@ class YamahaAVR:
                                 ):  # We have the new source
                                     self._active_source_text = status.get("input_text")
 
-                                update["source"] = self._active_source_text
+                                update[MediaAttr.SOURCE] = self._active_source_text
                             case "setSoundMode":
                                 sound_mode = kwargs["sound_mode"]
                                 sound_mode = sound_mode.lower()
@@ -435,23 +393,23 @@ class YamahaAVR:
                                     Zone.set_sound_program(zone, sound_mode)
                                 )
                                 self._sound_mode = sound_mode
-                                update["sound_mode"] = sound_mode
+                                update[MediaAttr.SOUND_MODE] = sound_mode
                             case "setDirect":
                                 res = await avr.request(Zone.set_direct(zone, "True"))
                                 self._sound_mode = "Direct"
-                                update["sound_mode"] = "Direct"
+                                update[MediaAttr.SOUND_MODE] = "Direct"
                             case "setPureDirect":
                                 res = await avr.request(
                                     Zone.set_pure_direct(zone, "True")
                                 )
                                 self._sound_mode = "Pure Direct"
-                                update["sound_mode"] = "Pure Direct"
+                                update[MediaAttr.SOUND_MODE] = "Pure Direct"
                             case "setClearVoice":
                                 res = await avr.request(
                                     Zone.set_clear_voice(zone, "True")
                                 )
                                 self._sound_mode = "Clear Voice"
-                                update["sound_mode"] = "Clear Voice"
+                                update[MediaAttr.SOUND_MODE] = "Clear Voice"
                             case "setSurroundAI":
                                 enabled = kwargs["enabled"]  # True, False
                                 res = await avr.request(
@@ -475,7 +433,9 @@ class YamahaAVR:
                                         "Missing required parameters 'band' and 'num'"
                                     )
                                 res = await avr.request(
-                                    Tuner.recall_preset(zone=zone, band=band, num=int(num))
+                                    Tuner.recall_preset(
+                                        zone=zone, band=band, num=int(num)
+                                    )
                                 )
                             case "switchPreset":
                                 direction = kwargs.get("direction")
@@ -489,7 +449,11 @@ class YamahaAVR:
                                     )
                                 res = await avr.request(Tuner.switch_preset(direction))
 
-            self.events.emit(EVENTS.UPDATE, self._device.identifier, update)
+            self.events.emit(
+                DeviceEvents.UPDATE,
+                create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
+                update,
+            )
             return res
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOG.error(

@@ -1,7 +1,27 @@
 """Yamaha AVR integration constants."""
 
+from dataclasses import dataclass
 from enum import Enum, IntEnum, StrEnum
+
 from ucapi.media_player import States as MediaStates
+
+
+@dataclass
+class YamahaConfig:
+    """Yamaha device configuration."""
+
+    identifier: str
+    """Unique identifier of the device. (MAC Address)"""
+    name: str
+    """Friendly name of the device."""
+    address: str
+    """IP Address of device"""
+    input_list: list[str] | None = None
+    """List of inputs for the device, if available."""
+    volume_step: str = "1"
+    """Volume step for the device, default is 1. Can be set to '0.5' or '2'."""
+    sound_modes: list[str] | None = None
+    """List of sound modes for the device, if available."""
 
 
 class SimpleCommands(str, Enum):

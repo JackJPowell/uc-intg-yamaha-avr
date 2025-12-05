@@ -1,47 +1,22 @@
 """
 Setup flow for Yamaha AVR Remote integration.
 
-:copyright: (c) 2023-2024 by Unfolded Circle ApS.
+:copyright: (c) 2023-2024 by Jack Powell
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
 """
 
-import asyncio
 import logging
-from enum import IntEnum
+from typing import Any
 
 import aiohttp
-import config
-from config import YamahaDevice
-from discover import YamahaReceiverDiscovery
+from const import YamahaConfig
 from pyamaha import AsyncDevice, System
-from ucapi import (
-    AbortDriverSetup,
-    DriverSetupRequest,
-    IntegrationSetupError,
-    RequestUserInput,
-    SetupAction,
-    SetupComplete,
-    SetupDriver,
-    SetupError,
-    UserDataResponse,
-)
+from ucapi import IntegrationSetupError, RequestUserInput, SetupError
+from ucapi_framework import BaseSetupFlow
 
 _LOG = logging.getLogger(__name__)
 
-
-class SetupSteps(IntEnum):
-    """Enumeration of setup steps to keep track of user data responses."""
-
-    INIT = 0
-    CONFIGURATION_MODE = 1
-    DISCOVER = 2
-    DEVICE_CHOICE = 3
-
-
-_setup_step = SetupSteps.INIT
-_cfg_add_device: bool = False
-
-_user_input_manual = RequestUserInput(
+_MANUAL_INPUT_SCHEMA = RequestUserInput(
     {"en": "Yamaha AVR Setup"},
     [
         {
@@ -61,7 +36,7 @@ _user_input_manual = RequestUserInput(
         },
         {
             "field": {"text": {"value": ""}},
-            "id": "ip",
+            "id": "address",
             "label": {
                 "en": "IP Address",
             },
@@ -77,344 +52,113 @@ _user_input_manual = RequestUserInput(
 )
 
 
-async def driver_setup_handler(
-    msg: SetupDriver,
-) -> SetupAction:  # pylint: disable=too-many-return-statements
+class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
     """
-    Dispatch driver setup requests to corresponding handlers.
+    Setup flow for Yamaha AVR integration.
 
-    Either start the setup process or handle the selected Yamaha AVR device.
-
-    :param msg: the setup driver request object, either DriverSetupRequest or UserDataResponse
-    :return: the setup action on how to continue
+    Handles Yamaha AVR configuration through SSDP discovery or manual entry.
     """
-    global _setup_step  # pylint: disable=global-statement
-    global _cfg_add_device  # pylint: disable=global-statement
 
-    if isinstance(msg, DriverSetupRequest):
-        _setup_step = SetupSteps.INIT
-        _cfg_add_device = False
-        return await _handle_driver_setup(msg)
+    def get_manual_entry_form(self) -> RequestUserInput:
+        """
+        Get the manual entry form for Yamaha AVR setup.
 
-    if isinstance(msg, UserDataResponse):
-        _LOG.debug("%s", msg)
-        if (
-            _setup_step == SetupSteps.CONFIGURATION_MODE
-            and "action" in msg.input_values
-        ):
-            return await _handle_configuration_mode(msg)
-        if (
-            _setup_step == SetupSteps.DISCOVER
-            and "ip" in msg.input_values
-            and msg.input_values.get("ip") != "manual"
-        ):
-            return await _handle_creation(msg)
-        if (
-            _setup_step == SetupSteps.DISCOVER
-            and "ip" in msg.input_values
-            and msg.input_values.get("ip") == "manual"
-        ):
-            return await _handle_manual()
-        _LOG.error("No user input was received for step: %s", msg)
-    elif isinstance(msg, AbortDriverSetup):
-        _LOG.info("Setup was aborted with code: %s", msg.error)
-        _setup_step = SetupSteps.INIT
+        :return: RequestUserInput for manual entry
+        """
+        return _MANUAL_INPUT_SCHEMA
 
-    return SetupError()
+    def get_additional_discovery_fields(self) -> list[dict]:
+        """
+        Return additional fields for discovery-based setup.
 
-
-async def _handle_driver_setup(
-    msg: DriverSetupRequest,
-) -> RequestUserInput | SetupError:
-    """
-    Start driver setup.
-
-    Initiated by Remote Two to set up the driver. The reconfigure flag determines the setup flow:
-
-    - Reconfigure is True:
-        show the configured devices and ask user what action to perform (add, delete, reset).
-    - Reconfigure is False: clear the existing configuration and show device discovery screen.
-      Ask user to enter ip-address for manual configuration, otherwise auto-discovery is used.
-
-    :param msg: driver setup request data, only `reconfigure` flag is of interest.
-    :return: the setup action on how to continue
-    """
-    global _setup_step  # pylint: disable=global-statement
-
-    reconfigure = msg.reconfigure
-    _LOG.debug("Starting driver setup, reconfigure=%s", reconfigure)
-
-    if reconfigure:
-        _setup_step = SetupSteps.CONFIGURATION_MODE
-
-        # get all configured devices for the user to choose from
-        dropdown_devices = []
-        for device in config.devices.all():
-            dropdown_devices.append(
-                {"id": device.identifier, "label": {"en": f"{device.name}"}}
-            )
-
-        dropdown_actions = [
+        :return: List of dictionaries defining additional fields
+        """
+        return [
             {
-                "id": "add",
+                "field": {"text": {"value": "1"}},
+                "id": "step",
                 "label": {
-                    "en": "Add a new Yamaha AVR",
+                    "en": "Volume Step",
                 },
-            },
+            }
         ]
 
-        # add remove & reset actions if there's at least one configured device
-        if dropdown_devices:
-            dropdown_actions.append(
-                {
-                    "id": "update",
-                    "label": {
-                        "en": "Update information for selected Yamaha AVR",
-                    },
-                },
+    async def query_device(
+        self, input_values: dict[str, Any]
+    ) -> YamahaConfig | SetupError | RequestUserInput:
+        """
+        Helper method to create device configuration from IP address.
+
+        :param input_values: Dictionary containing 'address' (device IP address) and 'step' (volume step size).
+        :return: Yamaha device configuration
+        :raises IntegrationSetupError: If device setup fails
+        """
+        address = input_values.get("address")
+        step = input_values.get("step", "1")
+        if not address:
+            raise IntegrationSetupError("IP address is required")
+        _LOG.debug("Connecting to Yamaha AVR at %s", address)
+
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=2)
+            ) as client:
+                dev = AsyncDevice(client, address)
+                res = await dev.request(System.get_device_info())
+                data = await res.json()
+                res = await dev.request(System.get_features())
+                features = await res.json()
+
+            input_list = next(
+                (
+                    zone.get("input_list", [])
+                    for zone in features["zone"]
+                    if zone["id"] == "main"
+                ),
+                [],
             )
-            dropdown_actions.append(
-                {
-                    "id": "remove",
-                    "label": {
-                        "en": "Remove selected Yamaha AVR",
-                    },
-                },
-            )
-            dropdown_actions.append(
-                {
-                    "id": "reset",
-                    "label": {
-                        "en": "Reset configuration and reconfigure",
-                        "de": "Konfiguration zurücksetzen und neu konfigurieren",
-                        "fr": "Réinitialiser la configuration et reconfigurer",
-                    },
-                },
-            )
-        else:
-            # dummy entry if no devices are available
-            dropdown_devices.append({"id": "", "label": {"en": "---"}})
-
-        return RequestUserInput(
-            {"en": "Configuration mode", "de": "Konfigurations-Modus"},
-            [
-                {
-                    "field": {
-                        "dropdown": {
-                            "value": dropdown_devices[0]["id"],
-                            "items": dropdown_devices,
-                        }
-                    },
-                    "id": "choice",
-                    "label": {
-                        "en": "Configured Devices",
-                        "de": "Konfigurerte Geräte",
-                        "fr": "Appareils configurés",
-                    },
-                },
-                {
-                    "field": {
-                        "dropdown": {
-                            "value": dropdown_actions[0]["id"],
-                            "items": dropdown_actions,
-                        }
-                    },
-                    "id": "action",
-                    "label": {
-                        "en": "Action",
-                        "de": "Aktion",
-                        "fr": "Appareils configurés",
-                    },
-                },
-            ],
-        )
-
-    # Initial setup, make sure we have a clean configuration
-    config.devices.clear()  # triggers device instance removal
-    _setup_step = SetupSteps.DISCOVER
-    return await _handle_discovery()
-
-
-async def _handle_configuration_mode(
-    msg: UserDataResponse,
-) -> RequestUserInput | SetupComplete | SetupError:
-    """
-    Process user data response from the configuration mode screen.
-
-    User input data:
-
-    - ``choice`` contains identifier of selected device
-    - ``action`` contains the selected action identifier
-
-    :param msg: user input data from the configuration mode screen.
-    :return: the setup action on how to continue
-    """
-    global _setup_step  # pylint: disable=global-statement
-    global _cfg_add_device  # pylint: disable=global-statement
-
-    action = msg.input_values["action"]
-
-    # workaround for web-configurator not picking up first response
-    await asyncio.sleep(1)
-
-    match action:
-        case "add":
-            _cfg_add_device = True
-            _setup_step = SetupSteps.DISCOVER
-            return await _handle_discovery()
-        case "update":
-            choice = msg.input_values["choice"]
-            if not config.devices.remove(choice):
-                _LOG.warning("Could not update device from configuration: %s", choice)
-                return SetupError(error_type=IntegrationSetupError.OTHER)
-            _setup_step = SetupSteps.DISCOVER
-            return await _handle_discovery()
-        case "remove":
-            choice = msg.input_values["choice"]
-            if not config.devices.remove(choice):
-                _LOG.warning("Could not remove device from configuration: %s", choice)
-                return SetupError(error_type=IntegrationSetupError.OTHER)
-            config.devices.store()
-            return SetupComplete()
-        case "reset":
-            config.devices.clear()  # triggers device instance removal
-            _setup_step = SetupSteps.DISCOVER
-            return await _handle_discovery()
-        case _:
-            _LOG.error("Invalid configuration action: %s", action)
-            return SetupError(error_type=IntegrationSetupError.OTHER)
-
-    _setup_step = SetupSteps.DISCOVER
-    return await _handle_discovery()
-
-
-async def _handle_manual() -> RequestUserInput | SetupError:
-    return _user_input_manual
-
-
-async def _handle_discovery() -> RequestUserInput | SetupError:
-    """
-    Process user data response from the first setup process screen.
-    """
-    global _setup_step  # pylint: disable=global-statement
-    _setup_step = SetupSteps.DISCOVER
-
-    discovered_devices = YamahaReceiverDiscovery().discover()
-    if len(discovered_devices) > 0:
-        _LOG.debug("Found Yamaha AVRs")
-
-        dropdown_devices = []
-        for device in discovered_devices:
-            dropdown_devices.append(
-                {"id": device.ip_address, "label": {"en": f"{device.modelname}"}}
+            sound_modes = next(
+                (
+                    zone.get("sound_mode_list", [])
+                    for zone in features["zone"]
+                    if zone["id"] == "main"
+                ),
+                [],
             )
 
-        dropdown_devices.append({"id": "manual", "label": {"en": "Setup Manually"}})
+            _LOG.debug("Yamaha AVR input list: %s", input_list)
+            _LOG.debug("Yamaha AVR sound modes: %s", sound_modes)
+            _LOG.debug("Yamaha AVR device info: %s", data)
 
-        return RequestUserInput(
-            {"en": "Discovered Yamaha AVRs"},
-            [
-                {
-                    "field": {
-                        "dropdown": {
-                            "value": dropdown_devices[0]["id"],
-                            "items": dropdown_devices,
-                        }
-                    },
-                    "id": "ip",
-                    "label": {
-                        "en": "Discovered AVRs:",
-                    },
-                },
-                {
-                    "field": {"text": {"value": "1"}},
-                    "id": "step",
-                    "label": {
-                        "en": "Volume Step",
-                    },
-                },
-            ],
-        )
+            device_id = data.get("serial_number", data.get("device_id"))
+            if not device_id:
+                device_id = data.get("model_name", None)
+            if not device_id:
+                _LOG.error(
+                    "Could not determine device identifier from response: %s", data
+                )
+                raise IntegrationSetupError("Could not determine device identifier")
 
-    # Initial setup, make sure we have a clean configuration
-    config.devices.clear()  # triggers device instance removal
-    _setup_step = SetupSteps.DISCOVER
-    return _user_input_manual
+            # if we are adding a new device: make sure it's not already configured
+            if self._add_mode and self.config.contains(device_id):
+                _LOG.warning(
+                    "Device %s already configured, skipping",
+                    data.get("model_name"),
+                )
+                raise IntegrationSetupError("Device already configured")
 
-
-async def _handle_creation(msg: UserDataResponse) -> RequestUserInput | SetupError:
-    """
-    Process user data response from the first setup process screen.
-
-    :param msg: response data from the requested user data
-    :return: the setup action on how to continue
-    """
-    ip = msg.input_values["ip"]
-    step = msg.input_values.get("step", "1")
-    data = {}
-
-    if ip is None or ip == "":
-        return _user_input_manual
-
-    _LOG.debug("Connecting to Yamaha AVR at %s", ip)
-
-    try:
-        async with aiohttp.ClientSession(conn_timeout=2) as client:
-            dev = AsyncDevice(client, ip)
-            res = await dev.request(System.get_device_info())
-            data = await res.json()
-            res = await dev.request(System.get_features())
-            features = await res.json()
-
-        input_list = next(
-            (
-                zone.get("input_list", [])
-                for zone in features["zone"]
-                if zone["id"] == "main"
-            ),
-            [],
-        )
-        sound_modes = next(
-            (
-                zone.get("sound_mode_list", [])
-                for zone in features["zone"]
-                if zone["id"] == "main"
-            ),
-            [],
-        )
-
-        _LOG.debug("Yamaha AVR info: %s", input_list)
-        _LOG.debug("Yamaha AVR info: %s", sound_modes)
-        _LOG.debug("Yamaha AVR info: %s", data)
-
-        device_id = data.get("serial_number", data.get("device_id"))
-        if not device_id:
-            device_id = data.get("model_name", None)
-        if not device_id:
-            _LOG.error("Could not determine device identifier from response: %s", data)
-            return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
-
-        # if we are adding a new device: make sure it's not already configured
-        if _cfg_add_device and config.devices.contains(device_id):
-            _LOG.warning(
-                "Skipping found device %s: already configured",
-                data.get("model_name"),
+            return YamahaConfig(
+                identifier=device_id,
+                name=data.get("model_name"),
+                address=address,
+                volume_step=step,
+                input_list=input_list,
+                sound_modes=sound_modes,
             )
-            return SetupError(error_type=IntegrationSetupError.OTHER)
-        device = YamahaDevice(
-            identifier=device_id,
-            name=data.get("model_name"),
-            address=ip,
-            volume_step=step,
-            input_list=input_list,
-            sound_modes=sound_modes,
-        )
 
-        config.devices.add_or_update(device)
-    except Exception as err:  # pylint: disable=broad-except
-        _LOG.error("Setup Error: %s", err)
-        return SetupError(error_type=IntegrationSetupError.NOT_FOUND)
-
-    await asyncio.sleep(1)
-    _LOG.info("Setup successfully completed for %s [%s]", device.name, device)
-    return SetupComplete()
+        except aiohttp.ClientError as err:
+            _LOG.error("Connection error to Yamaha AVR at %s: %s", address, err)
+            raise IntegrationSetupError("Could not connect to device") from err
+        except Exception as err:  # pylint: disable=broad-except
+            _LOG.error("Setup error for Yamaha AVR at %s: %s", address, err)
+            raise IntegrationSetupError("Device setup failed") from err

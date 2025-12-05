@@ -9,426 +9,14 @@ This module implements a Remote Two integration driver for Apple TV devices.
 import asyncio
 import logging
 import os
-import sys
-from typing import Any
 
-import config
-import setup
-import ucapi
-import ucapi.api as uc
-from ucapi import media_player
+from avr import YamahaAVR
+from const import YamahaConfig
+from discover import YamahaReceiverDiscovery
 from media_player import YamahaMediaPlayer
 from remote import YamahaRemote
-from config import YamahaDevice, device_from_entity_id
-import avr
-
-_LOG = logging.getLogger("driver")  # avoid having __main__ in log messages
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-_LOOP = asyncio.new_event_loop()
-asyncio.set_event_loop(_LOOP)
-
-# Global variables
-api = uc.IntegrationAPI(_LOOP)
-_configured_devices: dict[str, avr.YamahaAVR] = {}
-
-
-@api.listens_to(ucapi.Events.CONNECT)
-async def on_r2_connect_cmd() -> None:
-    """Connect all configured devices when the Remote Two sends the connect command."""
-    _LOG.debug("Client connect command: connecting device(s)")
-    await api.set_device_state(
-        ucapi.DeviceStates.CONNECTED
-    )  # just to make sure the device state is set
-    for device in _configured_devices.values():
-        await device.connect()
-
-
-@api.listens_to(ucapi.Events.DISCONNECT)
-async def on_r2_disconnect_cmd():
-    """Disconnect all configured devices when the Remote Two sends the disconnect command."""
-    _LOG.debug("Client disconnect command: disconnecting device(s)")
-    # for device in _configured_devices.values():
-    #     await device.disconnect(continue_polling=False)
-
-
-@api.listens_to(ucapi.Events.ENTER_STANDBY)
-async def on_r2_enter_standby() -> None:
-    """
-    Enter standby notification from Remote Two.
-
-    Disconnect every Yamaha AVR instances.
-    """
-    _LOG.debug("Enter standby event: disconnecting device(s)")
-    # for device in _configured_devices.values():
-    #     await device.disconnect(continue_polling=False)
-
-
-@api.listens_to(ucapi.Events.EXIT_STANDBY)
-async def on_r2_exit_standby() -> None:
-    """
-    Exit standby notification from Remote Two.
-
-    Connect all AVR instances.
-    """
-    _LOG.debug("Exit standby event: connecting device(s)")
-    for device in _configured_devices.values():
-        await device.connect()
-
-
-@api.listens_to(ucapi.Events.SUBSCRIBE_ENTITIES)
-async def on_subscribe_entities(entity_ids: list[str]) -> None:
-    """
-    Subscribe to given entities.
-
-    :param entity_ids: entity identifiers.
-    """
-    _LOG.debug("Subscribe entities event: %s", entity_ids)
-
-    for entity_id in entity_ids:
-        device_id = device_from_entity_id(entity_id)
-        if device_id is not None:
-            # this is a device entity, so we need to check if it is already configured
-            if device_id in _configured_devices:
-                device = _configured_devices[device_id]
-                _LOG.info("Add '%s' to configured devices and connect", device.name)
-                _LOG.debug("Device State: %s", device.state)
-                if device.state is None:
-                    state = media_player.States.UNAVAILABLE
-                else:
-                    state = _device_state_to_media_player_state(device.state)
-                api.configured_entities.update_attributes(
-                    entity_id, {media_player.Attributes.STATE: state}
-                )
-                continue
-
-        device = config.devices.get(device_id)
-        if device:
-            _add_configured_device(device)
-        else:
-            _LOG.error(
-                "Failed to subscribe entity %s: no Yamaha AVR instance found", entity_id
-            )
-
-
-@api.listens_to(ucapi.Events.UNSUBSCRIBE_ENTITIES)
-async def on_unsubscribe_entities(entity_ids: list[str]) -> None:
-    """On unsubscribe, we disconnect the objects and remove listeners for events."""
-    _LOG.debug("Unsubscribe entities event: %s", entity_ids)
-
-    # Track which devices need to be checked
-    devices_to_check = set()
-
-    for entity_id in entity_ids:
-        device_id = device_from_entity_id(entity_id)
-        if device_id is not None and device_id in _configured_devices:
-            devices_to_check.add(device_id)
-
-    # For each device, check if any of its entities are still configured
-    for device_id in devices_to_check:
-        device_entities = _entities_from_device_id(device_id)
-        any_entity_configured = any(
-            api.configured_entities.get(entity_id) is not None
-            for entity_id in device_entities
-        )
-
-        if not any_entity_configured:
-            # No entities are configured anymore, disconnect and cleanup
-            device = _configured_devices.get(device_id)
-            if device:
-                _LOG.info(
-                    "No entities configured for '%s', disconnecting and cleaning up",
-                    device.name,
-                )
-                await device.disconnect()
-                device.events.remove_all_listeners()
-
-
-async def on_device_connected(device_id: str):
-    """Handle device connection."""
-    _LOG.debug("Yamaha AVR connected: %s", device_id)
-    state = media_player.States.UNKNOWN
-    if device_id not in _configured_devices:
-        _LOG.warning("Yamaha AVR %s is not configured", device_id)
-        return
-
-    for entity_id in _entities_from_device_id(device_id):
-        configured_entity = api.configured_entities.get(entity_id)
-        if configured_entity is None:
-            _LOG.debug(
-                "Device connected : entity %s is not configured, ignoring it", entity_id
-            )
-            continue
-
-        device = _configured_devices[device_id]
-        if device_state := device.state:
-            state = _device_state_to_media_player_state(device_state)
-
-        if configured_entity.entity_type == ucapi.EntityTypes.MEDIA_PLAYER:
-            api.configured_entities.update_attributes(
-                entity_id,
-                {ucapi.media_player.Attributes.STATE: state},
-            )
-        elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
-            api.configured_entities.update_attributes(
-                entity_id, {ucapi.remote.Attributes.STATE: state}
-            )
-    await api.set_device_state(ucapi.DeviceStates.CONNECTED)
-
-
-async def on_device_disconnected(device_id: str):
-    """Handle device disconnection."""
-    _LOG.debug("Yamaha AVR disconnected: %s", device_id)
-
-    for entity_id in _entities_from_device_id(device_id):
-        configured_entity = api.configured_entities.get(entity_id)
-        if configured_entity is None:
-            continue
-
-        if configured_entity.entity_type == ucapi.EntityTypes.MEDIA_PLAYER:
-            api.configured_entities.update_attributes(
-                entity_id,
-                {
-                    ucapi.media_player.Attributes.STATE: ucapi.media_player.States.UNAVAILABLE
-                },
-            )
-        elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
-            api.configured_entities.update_attributes(
-                entity_id,
-                {ucapi.remote.Attributes.STATE: ucapi.remote.States.UNAVAILABLE},
-            )
-
-
-async def on_device_connection_error(device_id: str, message):
-    """Set entities of Yamaha AVR to state UNAVAILABLE if device connection error occurred."""
-    _LOG.error("[%s] Connection error: %s", device_id, message)
-
-    for entity_id in _entities_from_device_id(device_id):
-        configured_entity = api.configured_entities.get(entity_id)
-        if configured_entity is None:
-            continue
-
-        if configured_entity.entity_type == ucapi.EntityTypes.MEDIA_PLAYER:
-            api.configured_entities.update_attributes(
-                entity_id,
-                {
-                    ucapi.media_player.Attributes.STATE: ucapi.media_player.States.UNAVAILABLE
-                },
-            )
-        elif configured_entity.entity_type == ucapi.EntityTypes.REMOTE:
-            api.configured_entities.update_attributes(
-                entity_id,
-                {ucapi.remote.Attributes.STATE: ucapi.remote.States.UNAVAILABLE},
-            )
-
-    await api.set_device_state(ucapi.DeviceStates.ERROR)
-
-
-def _device_state_to_media_player_state(
-    device_state: avr.PowerState,
-) -> media_player.States:
-    match device_state:
-        case avr.PowerState.ON:
-            state = media_player.States.PLAYING
-        case avr.PowerState.OFF:
-            state = media_player.States.OFF
-        case avr.PowerState.STANDBY:
-            state = media_player.States.STANDBY
-        case _:
-            state = media_player.States.UNAVAILABLE
-    return state
-
-
-# pylint: disable=too-many-branches,too-many-statements
-async def on_device_update(entity_id: str, update: dict[str, Any] | None) -> None:
-    """
-    Update attributes of configured media-player entity if Device properties changed.
-
-    :param entity_id: Device media-player entity identifier
-    :param update: dictionary containing the updated properties or None
-    """
-    if update is None:
-        _LOG.warning("[%s] Received None update, skipping", entity_id)
-        return
-
-    target_entity = None
-    for identifier in _entities_from_device_id(entity_id):
-        attributes = {}
-        configured_entity = api.available_entities.get(identifier)
-        if configured_entity is None:
-            _LOG.debug(
-                "[%s] Entity %s not in available entities, skipping update",
-                entity_id,
-                identifier,
-            )
-            continue
-
-        if isinstance(configured_entity, YamahaMediaPlayer):
-            target_entity = api.available_entities.get(identifier)
-        elif isinstance(configured_entity, YamahaRemote):
-            target_entity = api.available_entities.get(identifier)
-
-        if "state" in update:
-            state = _device_state_to_media_player_state(update["state"])
-            attributes[ucapi.media_player.Attributes.STATE] = state
-
-        if isinstance(configured_entity, YamahaMediaPlayer):
-            if "source_list" in update:
-                if media_player.Attributes.SOURCE_LIST in target_entity.attributes:
-                    if len(
-                        target_entity.attributes[media_player.Attributes.SOURCE_LIST]
-                    ) != len(update["source_list"]):
-                        attributes[media_player.Attributes.SOURCE_LIST] = update[
-                            "source_list"
-                        ]
-                else:
-                    attributes[media_player.Attributes.SOURCE_LIST] = update[
-                        "source_list"
-                    ]
-
-            if "sound_mode_list" in update:
-                if media_player.Attributes.SOUND_MODE_LIST in target_entity.attributes:
-                    if len(
-                        target_entity.attributes[
-                            media_player.Attributes.SOUND_MODE_LIST
-                        ]
-                    ) != len(update["sound_mode_list"]):
-                        attributes[media_player.Attributes.SOUND_MODE_LIST] = update[
-                            "sound_mode_list"
-                        ]
-                else:
-                    attributes[media_player.Attributes.SOUND_MODE_LIST] = update[
-                        "sound_mode_list"
-                    ]
-            if "source" in update:
-                attributes[media_player.Attributes.MEDIA_TITLE] = update["source"]
-
-            if "volume" in update:
-                if (
-                    target_entity.attributes.get(media_player.Attributes.VOLUME, None)
-                    != update["volume"]
-                ):
-                    attributes[media_player.Attributes.VOLUME] = update["volume"]
-
-            if "muted" in update:
-                if (
-                    target_entity.attributes.get(media_player.Attributes.MUTED, None)
-                    != update["muted"]
-                ):
-                    attributes[media_player.Attributes.MUTED] = update["muted"]
-
-            if "sound_mode" in update:
-                attributes[media_player.Attributes.MEDIA_ARTIST] = update["sound_mode"]
-
-            if media_player.Attributes.STATE in attributes:
-                if attributes[media_player.Attributes.STATE] in [
-                    media_player.States.OFF,
-                    media_player.States.STANDBY,
-                ]:
-                    attributes[media_player.Attributes.SOURCE] = ""
-                    attributes[media_player.Attributes.VOLUME] = ""
-                    attributes[media_player.Attributes.MUTED] = False
-                    attributes[media_player.Attributes.SOUND_MODE] = ""
-                    attributes[media_player.Attributes.MEDIA_ARTIST] = ""
-                    attributes[media_player.Attributes.MEDIA_TITLE] = ""
-
-        if attributes:
-            if api.configured_entities.contains(identifier):
-                api.configured_entities.update_attributes(identifier, attributes)
-            else:
-                api.available_entities.update_attributes(identifier, attributes)
-
-
-def _add_configured_device(device_config: YamahaDevice, connect: bool = False) -> None:
-    # the device should not yet be configured, but better be safe
-    if device_config.identifier in _configured_devices:
-        _LOG.debug(
-            "Device %s already configured, updating existing instance",
-            device_config.identifier,
-        )
-        device = _configured_devices[device_config.identifier]
-    else:
-        _LOG.info(
-            "Adding new device: %s (%s) at %s",
-            device_config.identifier,
-            device_config.name,
-            device_config.address,
-        )
-        device = avr.YamahaAVR(device_config, loop=_LOOP)
-        device.events.on(avr.EVENTS.CONNECTED, on_device_connected)
-        device.events.on(avr.EVENTS.DISCONNECTED, on_device_disconnected)
-        device.events.on(avr.EVENTS.ERROR, on_device_connection_error)
-        device.events.on(avr.EVENTS.UPDATE, on_device_update)
-
-        _configured_devices[device.identifier] = device
-
-    if connect:
-        _LOG.debug("[%s] Creating connection task", device_config.identifier)
-        # Note: Task is fire-and-forget by design, connection status tracked via events
-        _LOOP.create_task(device.connect())
-
-    _register_available_entities(device_config, device)
-
-
-def _register_available_entities(
-    device_config: YamahaDevice, device: avr.YamahaAVR
-) -> bool:
-    """
-    Add a new device to the available entities.
-
-    :param identifier: identifier
-    :param name: Friendly name
-    :return: True if added, False if the device was already in storage.
-    """
-    _LOG.info("_register_available_entities for %s", device_config.name)
-    entities = [
-        YamahaMediaPlayer(device_config, device),
-        YamahaRemote(device_config, device),
-    ]
-    for entity in entities:
-        if api.available_entities.contains(entity.id):
-            api.available_entities.remove(entity.id)
-        api.available_entities.add(entity)
-    return True
-
-
-def _entities_from_device_id(device_id: str) -> list[str]:
-    """
-    Return all associated entity identifiers of the given device.
-
-    :param device_id: the device identifier
-    :return: list of entity identifiers
-    """
-    return [f"media_player.{device_id}", f"remote.{device_id}"]
-
-
-def on_device_added(device: YamahaDevice) -> None:
-    """Handle a newly added device in the configuration."""
-    _LOG.debug("New device added: %s", device)
-    _add_configured_device(device, connect=False)
-
-
-def on_device_removed(device: YamahaDevice | None) -> None:
-    """Handle a removed device in the configuration."""
-    if device is None:
-        _LOG.info("Configuration cleared, removing all configured device instances")
-        for device_instance in _configured_devices.values():
-            device_instance.events.remove_all_listeners()
-        _configured_devices.clear()
-        api.configured_entities.clear()
-        api.available_entities.clear()
-    else:
-        if device.identifier in _configured_devices:
-            _LOG.info("Removing device %s (%s)", device.identifier, device.name)
-            device_instance = _configured_devices.pop(device.identifier)
-            device_instance.events.remove_all_listeners()
-            # Remove both media_player and remote entities
-            for entity_id in _entities_from_device_id(device.identifier):
-                api.configured_entities.remove(entity_id)
-                api.available_entities.remove(entity_id)
-        else:
-            _LOG.warning("Device %s not found in configured devices", device.identifier)
+from setup import YamahaSetupFlow
+from ucapi_framework import BaseConfigManager, BaseIntegrationDriver, get_config_path
 
 
 async def main():
@@ -438,21 +26,34 @@ async def main():
     level = os.getenv("UC_LOG_LEVEL", "DEBUG").upper()
     logging.getLogger("avr").setLevel(level)
     logging.getLogger("driver").setLevel(level)
-    logging.getLogger("config").setLevel(level)
     logging.getLogger("discover").setLevel(level)
     logging.getLogger("setup").setLevel(level)
 
-    # load paired devices
-    config.devices = config.Devices(
-        api.config_dir_path, on_device_added, on_device_removed
+    driver = BaseIntegrationDriver(
+        device_class=YamahaAVR,
+        entity_classes=[YamahaMediaPlayer, YamahaRemote],
     )
 
-    for device_config in config.devices.all():
-        _add_configured_device(device_config)
+    driver.config_manager = BaseConfigManager(
+        get_config_path(driver.api.config_dir_path),
+        driver.on_device_added,
+        driver.on_device_removed,
+        config_class=YamahaConfig,
+    )
 
-    await api.init("driver.json", setup.driver_setup_handler)
+    await driver.register_all_configured_devices()
+
+    discovery = YamahaReceiverDiscovery(
+        timeout=2,
+        search_target="urn:schemas-upnp-org:device:MediaRenderer:1",
+        device_filter=YamahaReceiverDiscovery.is_yamaha_device,
+    )
+
+    setup_handler = YamahaSetupFlow.create_handler(driver, discovery=discovery)
+    await driver.api.init("driver.json", setup_handler)
+
+    await asyncio.Future()
 
 
 if __name__ == "__main__":
-    _LOOP.run_until_complete(main())
-    _LOOP.run_forever()
+    asyncio.run(main())
