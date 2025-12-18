@@ -11,7 +11,7 @@ from typing import Any
 
 import aiohttp
 from const import YamahaConfig
-from pyamaha import AsyncDevice, System, Tuner, Zone
+from pyamaha import AsyncDevice, System, Tuner, Zone, NetUSB
 from ucapi import EntityTypes
 from ucapi.media_player import Attributes as MediaAttr
 from ucapi_framework import StatelessHTTPDevice, create_entity_id
@@ -293,9 +293,11 @@ class YamahaAVR(StatelessHTTPDevice):
                                 code = kwargs.get("code", "")
                                 res = await avr.request(System.send_ir_code(code))
                             case "setHdmiOut1":
-                                res = await avr.request(System.set_hdmi_out_1("True"))
+                                enabled = kwargs.get("enabled", True)
+                                res = await avr.request(System.set_hdmi_out_1(enabled))
                             case "setHdmiOut2":
-                                res = await avr.request(System.set_hdmi_out_2("True"))
+                                enabled = kwargs.get("enabled", True)
+                                res = await avr.request(System.set_hdmi_out_2(enabled))
                             case "setSpeakerPattern":
                                 pattern = kwargs.get("pattern")
                                 if pattern is None:
@@ -419,11 +421,11 @@ class YamahaAVR(StatelessHTTPDevice):
                                 scene = int(kwargs["scene"])  # 1..8
                                 res = await avr.request(Zone.set_scene(zone, scene))
                     case "tuner":
+                        zone = kwargs.get("zone", "main")
                         match command:
                             case "recallPreset":
                                 band = kwargs.get("band")
                                 num = kwargs.get("num")
-                                zone = kwargs.get("zone", "main")
                                 if band is None or num is None:
                                     _LOG.error(
                                         "[%s] Missing 'band' or 'num' parameter for recallPreset",
@@ -448,6 +450,22 @@ class YamahaAVR(StatelessHTTPDevice):
                                         "Missing required parameter 'direction'"
                                     )
                                 res = await avr.request(Tuner.switch_preset(direction))
+                    case "netusb":
+                        zone = kwargs.get("zone", "main")
+                        match command:
+                            case "recallPreset":
+                                num = kwargs.get("num")
+                                if num is None:
+                                    _LOG.error(
+                                        "[%s] Missing 'num' parameter for recallPreset",
+                                        self.log_id,
+                                    )
+                                    raise ValueError(
+                                        "Missing required parameters 'band' and 'num'"
+                                    )
+                                res = await avr.request(
+                                    NetUSB.recall_preset(zone=zone, num=int(num))
+                                )
 
             self.events.emit(
                 DeviceEvents.UPDATE,

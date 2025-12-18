@@ -248,15 +248,33 @@ class YamahaRemote(Remote):
                             "setSleep", group="zone", zone="main", sleep="120"
                         )
                     case (
-                        SimpleCommands.HDMI_OUTPUT_1.value
-                        | SimpleCommands.HDMI_OUTPUT_1
+                        SimpleCommands.HDMI_OUTPUT_1_ON.value
+                        | SimpleCommands.HDMI_OUTPUT_1_ON
                     ):
-                        res = await yamaha.send_command("setHdmiOut1", group="system")
+                        res = await yamaha.send_command(
+                            "setHdmiOut1", group="system", enabled=True
+                        )
                     case (
-                        SimpleCommands.HDMI_OUTPUT_2.value
-                        | SimpleCommands.HDMI_OUTPUT_2
+                        SimpleCommands.HDMI_OUTPUT_2_ON.value
+                        | SimpleCommands.HDMI_OUTPUT_2_ON
                     ):
-                        res = await yamaha.send_command("setHdmiOut2", group="system")
+                        res = await yamaha.send_command(
+                            "setHdmiOut2", group="system", enabled=True
+                        )
+                    case (
+                        SimpleCommands.HDMI_OUTPUT_1_OFF.value
+                        | SimpleCommands.HDMI_OUTPUT_1_OFF
+                    ):
+                        res = await yamaha.send_command(
+                            "setHdmiOut1", group="system", enabled=False
+                        )
+                    case (
+                        SimpleCommands.HDMI_OUTPUT_2_OFF.value
+                        | SimpleCommands.HDMI_OUTPUT_2_OFF
+                    ):
+                        res = await yamaha.send_command(
+                            "setHdmiOut2", group="system", enabled=False
+                        )
                     case (
                         SimpleCommands.SOUND_MODE_DIRECT.value
                         | SimpleCommands.SOUND_MODE_DIRECT
@@ -336,7 +354,11 @@ class YamahaRemote(Remote):
                         # Extract the preset number from the command (e.g., "FM 5" -> 5)
                         preset_num = command.split()[-1]
                         res = await yamaha.send_command(
-                            "recallPreset", group="tuner", band="fm", num=preset_num
+                            "recallPreset",
+                            group="tuner",
+                            band="fm",
+                            num=preset_num,
+                            zone="main",
                         )
                     case (
                         SimpleCommands.DAB_1.value
@@ -363,7 +385,11 @@ class YamahaRemote(Remote):
                         # Extract the preset number from the command (e.g., "DAB 5" -> 5)
                         preset_num = command.split()[-1]
                         res = await yamaha.send_command(
-                            "recallPreset", group="tuner", band="dab", num=preset_num
+                            "recallPreset",
+                            group="tuner",
+                            band="dab",
+                            num=preset_num,
+                            zone="main",
                         )
                     case SimpleCommands.TUNER_NEXT.value | SimpleCommands.TUNER_NEXT:
                         res = await yamaha.send_command(
@@ -372,6 +398,36 @@ class YamahaRemote(Remote):
                     case SimpleCommands.TUNER_PREV.value | SimpleCommands.TUNER_PREV:
                         res = await yamaha.send_command(
                             "switchPreset", group="tuner", direction="previous"
+                        )
+                    case (
+                        SimpleCommands.NETUSB_1.value
+                        | SimpleCommands.NETUSB_1
+                        | SimpleCommands.NETUSB_2.value
+                        | SimpleCommands.NETUSB_2
+                        | SimpleCommands.NETUSB_3.value
+                        | SimpleCommands.NETUSB_3
+                        | SimpleCommands.NETUSB_4.value
+                        | SimpleCommands.NETUSB_4
+                        | SimpleCommands.NETUSB_5.value
+                        | SimpleCommands.NETUSB_5
+                        | SimpleCommands.NETUSB_6.value
+                        | SimpleCommands.NETUSB_6
+                        | SimpleCommands.NETUSB_7.value
+                        | SimpleCommands.NETUSB_7
+                        | SimpleCommands.NETUSB_8.value
+                        | SimpleCommands.NETUSB_8
+                        | SimpleCommands.NETUSB_9.value
+                        | SimpleCommands.NETUSB_9
+                        | SimpleCommands.NETUSB_10.value
+                        | SimpleCommands.NETUSB_10
+                    ):
+                        # Extract the preset number from the command (e.g., "Net/USB 5" -> 5)
+                        preset_num = command.split()[-1]
+                        res = await yamaha.send_command(
+                            "recallPreset",
+                            group="netusb",
+                            num=preset_num,
+                            zone="main",
                         )
 
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
@@ -590,7 +646,7 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "command": {
                     "cmd_id": "remote.send",
                     "params": {
-                        "command": SimpleCommands.HDMI_OUTPUT_1,
+                        "command": SimpleCommands.HDMI_OUTPUT_1_ON,
                         "repeat": 1,
                     },
                 },
@@ -603,7 +659,7 @@ YAMAHA_REMOTE_UI_PAGES = [
                 "command": {
                     "cmd_id": "remote.send",
                     "params": {
-                        "command": SimpleCommands.HDMI_OUTPUT_2,
+                        "command": SimpleCommands.HDMI_OUTPUT_2_ON,
                         "repeat": 1,
                     },
                 },

@@ -228,10 +228,22 @@ class YamahaMediaPlayer(MediaPlayer):
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="120"
                     )
-                case SimpleCommands.HDMI_OUTPUT_1.value:
-                    await yamaha.send_command("setHdmiOut1", group="system")
-                case SimpleCommands.HDMI_OUTPUT_2.value:
-                    await yamaha.send_command("setHdmiOut2", group="system")
+                case SimpleCommands.HDMI_OUTPUT_1_ON.value:
+                    await yamaha.send_command(
+                        "setHdmiOut1", group="system", enabled=True
+                    )
+                case SimpleCommands.HDMI_OUTPUT_1_OFF.value:
+                    await yamaha.send_command(
+                        "setHdmiOut1", group="system", enabled=False
+                    )
+                case SimpleCommands.HDMI_OUTPUT_2_ON.value:
+                    await yamaha.send_command(
+                        "setHdmiOut2", group="system", enabled=True
+                    )
+                case SimpleCommands.HDMI_OUTPUT_2_OFF.value:
+                    await yamaha.send_command(
+                        "setHdmiOut2", group="system", enabled=False
+                    )
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
                     await yamaha.send_command("setDirect", group="zone", zone="main")
                 case SimpleCommands.SOUND_MODE_PURE.value:
@@ -288,7 +300,11 @@ class YamahaMediaPlayer(MediaPlayer):
                     # Extract the preset number from the command (e.g., "FM 5" -> 5)
                     preset_num = cmd_id.split()[-1]
                     await yamaha.send_command(
-                        "recallPreset", group="tuner", band="fm", num=preset_num
+                        "recallPreset",
+                        group="tuner",
+                        band="fm",
+                        num=preset_num,
+                        zone="main",
                     )
                 case (
                     SimpleCommands.DAB_1.value
@@ -305,7 +321,11 @@ class YamahaMediaPlayer(MediaPlayer):
                     # Extract the preset number from the command (e.g., "DAB 5" -> 5)
                     preset_num = cmd_id.split()[-1]
                     await yamaha.send_command(
-                        "recallPreset", group="tuner", band="dab", num=preset_num
+                        "recallPreset",
+                        group="tuner",
+                        band="dab",
+                        num=preset_num,
+                        zone="main",
                     )
                 case SimpleCommands.TUNER_NEXT.value:
                     await yamaha.send_command(
@@ -314,6 +334,26 @@ class YamahaMediaPlayer(MediaPlayer):
                 case SimpleCommands.TUNER_PREV.value:
                     await yamaha.send_command(
                         "switchPreset", group="tuner", direction="previous"
+                    )
+                case (
+                    SimpleCommands.NETUSB_1.value
+                    | SimpleCommands.NETUSB_2.value
+                    | SimpleCommands.NETUSB_3.value
+                    | SimpleCommands.NETUSB_4.value
+                    | SimpleCommands.NETUSB_5.value
+                    | SimpleCommands.NETUSB_6.value
+                    | SimpleCommands.NETUSB_7.value
+                    | SimpleCommands.NETUSB_8.value
+                    | SimpleCommands.NETUSB_9.value
+                    | SimpleCommands.NETUSB_10.value
+                ):
+                    # Extract the preset number from the command (e.g., "Net/USB 5" -> 5)
+                    preset_num = cmd_id.split()[-1]
+                    await yamaha.send_command(
+                        "recallPreset",
+                        group="netusb",
+                        num=preset_num,
+                        zone="main",
                     )
 
         except Exception as ex:  # pylint: disable=broad-except
