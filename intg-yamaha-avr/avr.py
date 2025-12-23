@@ -83,7 +83,7 @@ class YamahaAVR(StatelessHTTPDevice):
         return self._device_config.address
 
     @property
-    def state(self) -> PowerState | None:
+    def state(self) -> str | None:
         """Return the device state."""
         return self._state.upper()
 
@@ -118,7 +118,7 @@ class YamahaAVR(StatelessHTTPDevice):
         return self._speaker_pattern_count
 
     @property
-    def attributes(self) -> dict[str, any]:
+    def attributes(self) -> dict[str, Any]:
         """Return the device attributes."""
         updated_data = {
             MediaAttr.STATE: self.state,
@@ -158,12 +158,14 @@ class YamahaAVR(StatelessHTTPDevice):
             self._state = status.get("power", PowerState.OFF)
             _LOG.debug("[%s] Device state: %s", self.log_id, self._state)
 
-    async def connect(self) -> None:
+    async def connect(self) -> bool:
         """Establish connection to the AVR."""
         # Use the base class connect which calls verify_connection
-        await super().connect()
+        result = await super().connect()
         # After connection is verified, update attributes
-        await self._update_attributes()
+        if result:
+            await self._update_attributes()
+        return result
 
     async def _update_attributes(self) -> None:
         _LOG.debug("[%s] Updating attributes", self.log_id)
@@ -266,7 +268,7 @@ class YamahaAVR(StatelessHTTPDevice):
     ) -> str:
         """Send a command to the AVR."""
         update = {}
-        res = None
+        res: str = ""
         try:
             async with aiohttp.ClientSession() as session:
                 avr = AsyncDevice(session, self.address)

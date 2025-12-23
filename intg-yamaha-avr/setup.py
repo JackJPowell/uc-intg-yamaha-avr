@@ -96,7 +96,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
         address = input_values.get("address")
         step = input_values.get("step", "1")
         if not address:
-            raise IntegrationSetupError("IP address is required")
+            return _MANUAL_INPUT_SCHEMA
         _LOG.debug("Connecting to Yamaha AVR at %s", address)
 
         try:
@@ -137,7 +137,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                 _LOG.error(
                     "Could not determine device identifier from response: %s", data
                 )
-                raise IntegrationSetupError("Could not determine device identifier")
+                return SetupError(IntegrationSetupError.OTHER)
 
             # if we are adding a new device: make sure it's not already configured
             if self._add_mode and self.config.contains(device_id):
@@ -145,7 +145,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                     "Device %s already configured, skipping",
                     data.get("model_name"),
                 )
-                raise IntegrationSetupError("Device already configured")
+                return SetupError(IntegrationSetupError.OTHER)
 
             return YamahaConfig(
                 identifier=device_id,
@@ -158,7 +158,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
 
         except aiohttp.ClientError as err:
             _LOG.error("Connection error to Yamaha AVR at %s: %s", address, err)
-            raise IntegrationSetupError("Could not connect to device") from err
+            return SetupError(IntegrationSetupError.CONNECTION_REFUSED)
         except Exception as err:  # pylint: disable=broad-except
             _LOG.error("Setup error for Yamaha AVR at %s: %s", address, err)
-            raise IntegrationSetupError("Device setup failed") from err
+            return SetupError(IntegrationSetupError.OTHER)
