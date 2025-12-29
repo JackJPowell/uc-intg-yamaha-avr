@@ -136,8 +136,9 @@ class YamahaAVR(StatelessHTTPDevice):
 
     @property
     def volume(self) -> float:
-        """Return the current volume level."""
-        return self._volume_level
+        """Return the current volume level as a percentage (0-100)."""
+        # Convert from raw API value (0-161) to percentage (0-100)
+        return round((self._volume_level / 161) * 100, 1)
 
     async def verify_connection(self) -> None:
         """
