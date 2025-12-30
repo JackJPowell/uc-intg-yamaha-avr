@@ -43,7 +43,6 @@ class YamahaAVR(StatelessHTTPDevice):
         self._connection_attempts: int = 0
         self._state: PowerState = PowerState.OFF
         self._source_list: list[str] = self._device_config.input_list or []
-        self._volume_level: float = 0.0
         self._min_volume_level: int = 0
         self._max_volume_level: int = 161
         self._active_source: str = ""
@@ -54,7 +53,7 @@ class YamahaAVR(StatelessHTTPDevice):
         self._sound_mode_list: list[str] = self._device_config.sound_modes or []
         self._speaker_pattern_count: int = 4
         self._features: dict = {}
-        self._volume_mode: str = ""
+        self._actual_volume: dict = {}
 
     @property
     def identifier(self) -> str:
@@ -136,9 +135,13 @@ class YamahaAVR(StatelessHTTPDevice):
 
     @property
     def volume(self) -> float:
-        """Return the current volume level as a percentage (0-100)."""
-        # Convert from raw API value (0-161) to percentage (0-100)
-        return round((self._volume_level / 161) * 100, 1)
+        """Return the current volume level (in dB for dB mode, or raw value for numeric mode)."""
+        return self._actual_volume.get("value", 0.0)
+
+    @property
+    def volume_mode(self) -> str:
+        """Return the volume mode (db or numeric)."""
+        return self._actual_volume.get("mode", "db")
 
     async def verify_connection(self) -> None:
         """
@@ -154,10 +157,9 @@ class YamahaAVR(StatelessHTTPDevice):
         )
         async with aiohttp.ClientSession() as session:
             avr = AsyncDevice(session, self.address)
-            res = await avr.request(Zone.get_status(self.zone))
-            status = await res.json()
-            self._state = status.get("power", PowerState.OFF)
-            _LOG.debug("[%s] Device state: %s", self.log_id, self._state)
+            # Just verify we can reach the device - don't process the response
+            await avr.request(Zone.get_status(self.zone))
+            _LOG.debug("[%s] Device connection verified", self.log_id)
 
     async def connect(self) -> bool:
         """Establish connection to the AVR."""
@@ -182,12 +184,9 @@ class YamahaAVR(StatelessHTTPDevice):
                 self._active_source = status.get("input", "")
                 self._active_source_text = status.get("input_text", "")
                 self._sound_mode = status.get("sound_program", None)
-                self._volume_level = status.get("volume", 0.0)
 
                 # Safely extract nested actual_volume data
-                actual_volume = status.get("actual_volume", {})
-                if actual_volume and isinstance(actual_volume, dict):
-                    self._volume_mode = actual_volume.get("mode", "")
+                self._actual_volume = status.get("actual_volume", {})
 
                 self._features = await avr.request(System.get_features())
                 self._features = await self._features.json()
@@ -346,10 +345,8 @@ class YamahaAVR(StatelessHTTPDevice):
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
 
-                                # Safely extract volume value
-                                actual_volume = status.get("actual_volume", {})
-                                if actual_volume and isinstance(actual_volume, dict):
-                                    self._volume_level = actual_volume.get("value", 0.0)
+                                # Extract actual_volume data
+                                self._actual_volume = status.get("actual_volume", {})
 
                                 update[MediaAttr.VOLUME] = self.volume
                             case "setMute":
@@ -502,8 +499,8 @@ class YamahaAVR(StatelessHTTPDevice):
             raise
 
     def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
-        volume = kwargs.get("volume", None)  # up, down, level
-        volume_level = kwargs.get("volume_level", None)
+        volume = kwargs.get("volume", None)  # up, down, or actual volume value
+        volume_level = kwargs.get("volume_level", None)  # actual_volume value from user
         step = float(self.device_config.volume_step)
 
         if step < 1:
@@ -511,14 +508,42 @@ class YamahaAVR(StatelessHTTPDevice):
         else:
             step = step * 2
 
+        # If volume_level is provided, convert based on current volume mode
         if volume_level is not None:
             try:
-                volume_level = int((161 * float(volume_level) / 100))
+                actual_value = float(volume_level)
+                mode = self._actual_volume.get("mode", "db")
+                
+                if mode == "db":
+                    # dB mode: -80.5 to +16.5 (or similar range)
+                    # Convert from dB to internal volume units: volume = (dB + 80.5) * 2
+                    volume = int((actual_value + 80.5) * 2)
+                    _LOG.debug(
+                        "[%s] Converting dB %s to internal volume %s",
+                        self.log_id,
+                        actual_value,
+                        volume,
+                    )
+                else:
+                    # numeric mode: 0 to 97.5
+                    # Convert from numeric display to internal volume units
+                    # volume = (numeric / 97.5) * 161 ≈ numeric * 1.651
+                    volume = int((actual_value / 97.5) * 161)
+                    _LOG.debug(
+                        "[%s] Converting numeric %s to internal volume %s",
+                        self.log_id,
+                        actual_value,
+                        volume,
+                    )
+                
+                step = 1
             except ValueError:
-                volume_level = 0
-
-            volume = volume_level
-            step = 1
+                _LOG.warning(
+                    "[%s] Invalid volume_level value: %s",
+                    self.log_id,
+                    volume_level,
+                )
+                volume = 0
 
         _LOG.debug(
             "[%s] Volume command: %s Step: %s",

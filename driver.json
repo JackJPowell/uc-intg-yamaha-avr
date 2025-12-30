@@ -1,6 +1,6 @@
 {
   "driver_id": "yamaha_avr_driver",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "min_core_api": "0.20.0",
   "name": { "en": "Yamaha AVR" },
   "icon": "uc:display",
@@ -39,5 +39,5 @@
       }
     ]
   },
-  "release_date": "2025-12-29"
+  "release_date": "2025-12-30"
 }
