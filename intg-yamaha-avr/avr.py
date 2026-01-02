@@ -54,6 +54,7 @@ class YamahaAVR(StatelessHTTPDevice):
         self._speaker_pattern_count: int = 4
         self._features: dict = {}
         self._actual_volume: dict = {}
+        self._volume_level: int = 0  # Internal volume (0-161)
 
     @property
     def identifier(self) -> str:
@@ -139,6 +140,15 @@ class YamahaAVR(StatelessHTTPDevice):
         return self._actual_volume.get("value", 0.0)
 
     @property
+    def volume_percent(self) -> int:
+        """Return the current volume as a percentage (0-100) for the remote UI slider."""
+        # Convert internal volume (0-161) to percentage (0-100)
+        percentage = int((self._volume_level / self.max_volume) * 100)
+        
+        # Clamp to 0-100 range
+        return max(0, min(100, percentage))
+
+    @property
     def volume_mode(self) -> str:
         """Return the volume mode (db or numeric)."""
         return self._actual_volume.get("mode", "db")
@@ -192,6 +202,8 @@ class YamahaAVR(StatelessHTTPDevice):
 
                 # Safely extract nested actual_volume data
                 self._actual_volume = status.get("actual_volume", {})
+                # Also store the internal volume value (0-161)
+                self._volume_level = status.get("volume", 0)
 
                 self._features = await avr.request(System.get_features())
                 self._features = await self._features.json()
@@ -257,7 +269,7 @@ class YamahaAVR(StatelessHTTPDevice):
             update[MediaAttr.SOURCE_LIST] = self.source_list
             update[MediaAttr.SOUND_MODE] = self.sound_mode
             update[MediaAttr.SOUND_MODE_LIST] = self.sound_mode_list
-            update[MediaAttr.VOLUME] = self.volume
+            update[MediaAttr.VOLUME] = self.volume_percent
 
         except Exception:  # pylint: disable=broad-exception-caught
             _LOG.exception("[%s] App list: protocol error", self.log_id)
@@ -365,10 +377,11 @@ class YamahaAVR(StatelessHTTPDevice):
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
 
-                                # Extract actual_volume data
+                                # Extract actual_volume data and internal volume
                                 self._actual_volume = status.get("actual_volume", {})
+                                self._volume_level = status.get("volume", 0)
 
-                                update[MediaAttr.VOLUME] = self.volume
+                                update[MediaAttr.VOLUME] = self.volume_percent
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
                                 if mute == "toggle":
