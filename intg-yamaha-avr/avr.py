@@ -143,6 +143,11 @@ class YamahaAVR(StatelessHTTPDevice):
         """Return the volume mode (db or numeric)."""
         return self._actual_volume.get("mode", "db")
 
+    @property
+    def max_volume(self) -> int:
+        """Return the maximum volume level, defaulting to 161 if not set."""
+        return self._max_volume_level if self._max_volume_level > 0 else 161
+
     async def verify_connection(self) -> None:
         """
         Verify the device connection.
@@ -337,10 +342,25 @@ class YamahaAVR(StatelessHTTPDevice):
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
                             case "setVolume":
-                                volume, step = self._calculate_volume(kwargs)
-                                res = await avr.request(
-                                    Zone.set_volume(zone, volume, int(step))
-                                )
+                                volume_cmd = kwargs.get("volume")
+                                
+                                # Handle up/down commands directly
+                                if volume_cmd in ("up", "down"):
+                                    step = float(self.device_config.volume_step)
+                                    if step < 1:
+                                        step = 1
+                                    else:
+                                        step = step * 2
+                                    res = await avr.request(
+                                        Zone.set_volume(zone, volume_cmd, int(step))
+                                    )
+                                else:
+                                    # Calculate volume from percentage
+                                    volume = self._calculate_volume(kwargs)
+                                    res = await avr.request(
+                                        Zone.set_volume(zone, volume, 1)
+                                    )
+                                
                                 await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
@@ -498,46 +518,32 @@ class YamahaAVR(StatelessHTTPDevice):
             )
             raise
 
-    def _calculate_volume(self, kwargs: dict[str, Any]) -> tuple:
-        volume = kwargs.get("volume", None)  # up, down, or actual volume value
-        volume_level = kwargs.get("volume_level", None)  # actual_volume value from user
-        step = float(self.device_config.volume_step)
+    def _calculate_volume(self, kwargs: dict[str, Any]) -> int:
+        """Calculate volume command and step based on user input.
 
-        if step < 1:
-            step = 1
-        else:
-            step = step * 2
+        Args:
+            kwargs: Command arguments which may contain:
+                - volume_level: integer percentage (0-100) to convert to integer percentage of max_volume
 
-        # If volume_level is provided, convert based on current volume mode
+        Returns:
+            tuple: (volume_command, step) where volume_command is 'up', 'down', or integer
+        """
+        volume_level = kwargs.get("volume_level", 0)  # integer 0-100
+
+        # If volume_level is provided (0-100), convert to integer percentage of max_volume
         if volume_level is not None:
             try:
-                actual_value = float(volume_level)
-                mode = self._actual_volume.get("mode", "db")
-                
-                if mode == "db":
-                    # dB mode: -80.5 to +16.5 (or similar range)
-                    # Convert from dB to internal volume units: volume = (dB + 80.5) * 2
-                    volume = int((actual_value + 80.5) * 2)
-                    _LOG.debug(
-                        "[%s] Converting dB %s to internal volume %s",
-                        self.log_id,
-                        actual_value,
-                        volume,
-                    )
-                else:
-                    # numeric mode: 0 to 97.5
-                    # Convert from numeric display to internal volume units
-                    # volume = (numeric / 97.5) * 161 ≈ numeric * 1.651
-                    volume = int((actual_value / 97.5) * 161)
-                    _LOG.debug(
-                        "[%s] Converting numeric %s to internal volume %s",
-                        self.log_id,
-                        actual_value,
-                        volume,
-                    )
-                
-                step = 1
-            except ValueError:
+                percentage = int(volume_level)
+                # Convert percentage (0-100) to integer volume (0-max_volume)
+                volume = int((percentage / 100.0) * self.max_volume)
+                _LOG.debug(
+                    "[%s] Converting volume_level %s%% to %s (max: %s)",
+                    self.log_id,
+                    percentage,
+                    volume,
+                    self.max_volume,
+                )
+            except (ValueError, TypeError):
                 _LOG.warning(
                     "[%s] Invalid volume_level value: %s",
                     self.log_id,
@@ -545,10 +551,4 @@ class YamahaAVR(StatelessHTTPDevice):
                 )
                 volume = 0
 
-        _LOG.debug(
-            "[%s] Volume command: %s Step: %s",
-            self.log_id,
-            volume,
-            step,
-        )
-        return volume, step
+        return int(volume)
