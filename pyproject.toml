@@ -8,7 +8,7 @@ dependencies = [
     "async-timeout>=5.0.1",
     "pyee>=9.0.0",
     "ucapi==0.5.1",
-    "ucapi-framework==1.4.0",
+    "ucapi-framework==1.7.2",
     "aiohttp>=3.0.0,<4.0.0",
     "pyamaha-yec==0.6.4",
     "defusedxml==0.7.1",
