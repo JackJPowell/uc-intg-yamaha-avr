@@ -14,6 +14,7 @@ from const import SimpleCommands, YamahaConfig
 from ucapi import EntityTypes, MediaPlayer, media_player
 from ucapi.media_player import Attributes, DeviceClasses
 from ucapi_framework import create_entity_id
+from ucapi_framework.entity import Entity as FrameworkEntity
 
 _LOG = logging.getLogger(__name__)
 
@@ -34,14 +35,17 @@ features = [
 ]
 
 
-class YamahaMediaPlayer(MediaPlayer):
+class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
     """Representation of a Yamaha MediaPlayer entity."""
 
     def __init__(self, config_device: YamahaConfig, device: YamahaAVR):
         """Initialize the class."""
         self._device = device
         _LOG.debug("Yamaha AVR Media Player init")
-        entity_id = create_entity_id(EntityTypes.MEDIA_PLAYER, config_device.identifier)
+        self._entity_id = create_entity_id(
+            EntityTypes.MEDIA_PLAYER, config_device.identifier
+        )
+
         self.config = config_device
         self.options = [cmd.value for cmd in SimpleCommands]
         if self._device.speaker_pattern_count > 0:
@@ -49,7 +53,7 @@ class YamahaMediaPlayer(MediaPlayer):
                 self.options.extend([f"SPEAKER_PATTERN_{pattern + 1}"])
 
         super().__init__(
-            entity_id,
+            self._entity_id,
             config_device.name,
             features,
             attributes={
@@ -61,11 +65,11 @@ class YamahaMediaPlayer(MediaPlayer):
                 Attributes.SOUND_MODE_LIST: device.sound_mode_list
                 if device.sound_mode_list
                 else [],
-                Attributes.VOLUME: device.volume,
+                Attributes.VOLUME: device.volume_percent,
             },
             device_class=DeviceClasses.RECEIVER,
             options={media_player.Options.SIMPLE_COMMANDS: self.options},
-            cmd_handler=self.media_player_cmd_handler,
+            cmd_handler=self.media_player_cmd_handler,  # type: ignore[arg-type]
         )
 
     # pylint: disable=too-many-statements
@@ -87,6 +91,7 @@ class YamahaMediaPlayer(MediaPlayer):
         )
         pattern = 0
         scene_id = 1
+        state_changed = False  # Track if command changes device state
 
         yamaha = self._device
 
@@ -105,14 +110,17 @@ class YamahaMediaPlayer(MediaPlayer):
                     await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="on"
                     )
+                    state_changed = True
                 case media_player.Commands.OFF:
                     await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="standby"
                     )
+                    state_changed = True
                 case media_player.Commands.TOGGLE:
                     await yamaha.send_command(
                         "setPower", group="zone", zone="main", power="toggle"
                     )
+                    state_changed = True
                 case media_player.Commands.VOLUME_UP:
                     await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="up"
@@ -122,7 +130,7 @@ class YamahaMediaPlayer(MediaPlayer):
                         "setVolume", group="zone", zone="main", volume="down"
                     )
                 case media_player.Commands.VOLUME:
-                    volume_level = params.get("volume")
+                    volume_level = params.get("volume") if params else None
                     await yamaha.send_command(
                         "setVolume",
                         group="zone",
@@ -198,15 +206,17 @@ class YamahaMediaPlayer(MediaPlayer):
                         "setInput",
                         group="zone",
                         zone="main",
-                        input_source=params.get("source"),
+                        input_source=params.get("source") if params else None,
                     )
+                    state_changed = True
                 case media_player.Commands.SELECT_SOUND_MODE:
                     await yamaha.send_command(
                         "setSoundMode",
                         group="zone",
                         zone="main",
-                        sound_mode=params.get("mode"),
+                        sound_mode=params.get("mode") if params else None,
                     )
+                    state_changed = True
                 # --- simple commands ---
                 case SimpleCommands.SLEEP_OFF.value:
                     await yamaha.send_command(
@@ -359,4 +369,10 @@ class YamahaMediaPlayer(MediaPlayer):
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing command %s: %s", cmd_id, ex)
             return ucapi.StatusCodes.BAD_REQUEST
+
+        # Update entity state if command changed device state
+        # FrameworkEntity.update() calls get_device_attributes() to retrieve updated attributes
+        if state_changed and isinstance(entity, FrameworkEntity):
+            self.update(yamaha.attributes)
+
         return ucapi.StatusCodes.OK

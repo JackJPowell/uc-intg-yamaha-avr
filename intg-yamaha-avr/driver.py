@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-This module implements a Remote Two integration driver for Apple TV devices.
+This module implements a Remote Two integration driver for Yamaha AVR devices.
 
 :copyright: (c) 2023-2024 by Unfolded Circle ApS.
 :license: Mozilla Public License Version 2.0, see LICENSE for more details.
@@ -11,10 +11,11 @@ import logging
 import os
 
 from avr import YamahaAVR
-from const import YamahaConfig
+from const import YamahaConfig, SENSORS
 from discover import YamahaReceiverDiscovery
 from media_player import YamahaMediaPlayer
 from remote import YamahaRemote
+from sensor import YamahaSensor
 from setup import YamahaSetupFlow
 from ucapi_framework import BaseConfigManager, BaseIntegrationDriver, get_config_path
 
@@ -27,11 +28,18 @@ async def main():
     logging.getLogger("avr").setLevel(level)
     logging.getLogger("driver").setLevel(level)
     logging.getLogger("discover").setLevel(level)
+    logging.getLogger("sensor").setLevel(level)
     logging.getLogger("setup").setLevel(level)
 
     driver = BaseIntegrationDriver(
         device_class=YamahaAVR,
-        entity_classes=[YamahaMediaPlayer, YamahaRemote],
+        entity_classes=[
+            YamahaMediaPlayer,
+            YamahaRemote,
+            lambda cfg, dev: [
+                YamahaSensor(cfg, dev, sensor_config) for sensor_config in SENSORS
+            ],
+        ],
     )
 
     driver.config_manager = BaseConfigManager(
@@ -41,7 +49,7 @@ async def main():
         config_class=YamahaConfig,
     )
 
-    await driver.register_all_configured_devices()
+    await driver.register_all_device_instances()
 
     discovery = YamahaReceiverDiscovery(
         timeout=2,

@@ -6,26 +6,17 @@ This module implements the Yamaha AVR communication of the Remote Two integratio
 import asyncio
 import logging
 from asyncio import AbstractEventLoop
-from enum import StrEnum
 from typing import Any
 
 import aiohttp
-from const import YamahaConfig
+from const import YamahaConfig, SENSORS, SensorConfig
 from pyamaha import AsyncDevice, System, Tuner, Zone, NetUSB
-from ucapi import EntityTypes
-from ucapi.media_player import Attributes as MediaAttr
-from ucapi_framework import StatelessHTTPDevice, create_entity_id
-from ucapi_framework.device import DeviceEvents
+from ucapi import EntityTypes, media_player
+from ucapi.sensor import States as SensorStates
+from ucapi_framework import StatelessHTTPDevice, EntitySource, BaseIntegrationDriver
+from ucapi_framework.helpers import MediaPlayerAttributes, SensorAttributes
 
 _LOG = logging.getLogger(__name__)
-
-
-class PowerState(StrEnum):
-    """Playback state for companion protocol."""
-
-    OFF = "OFF"
-    ON = "ON"
-    STANDBY = "STANDBY"
 
 
 class YamahaAVR(StatelessHTTPDevice):
@@ -36,25 +27,37 @@ class YamahaAVR(StatelessHTTPDevice):
         device_config: YamahaConfig,
         loop: AbstractEventLoop | None = None,
         config_manager=None,
+        driver: BaseIntegrationDriver | None = None,
     ) -> None:
         """Create instance."""
-        super().__init__(device_config, loop, config_manager=config_manager)
+        super().__init__(
+            device_config, loop, config_manager=config_manager, driver=driver
+        )
         self._yamaha_avr: AsyncDevice | None = None
         self._connection_attempts: int = 0
-        self._state: PowerState = PowerState.OFF
         self._source_list: list[str] = self._device_config.input_list or []
+        self._sound_mode_list: list[str] = self._device_config.sound_modes or []
         self._min_volume_level: int = 0
         self._max_volume_level: int = 161
-        self._active_source: str = ""
-        self._active_source_text: str = ""
         self._zone: str = "main"
-        self._muted: bool = False
-        self._sound_mode: str = ""
-        self._sound_mode_list: list[str] = self._device_config.sound_modes or []
         self._speaker_pattern_count: int = 4
         self._features: dict = {}
         self._actual_volume: dict = {}
         self._volume_level: int = 0  # Internal volume (0-161)
+
+        # Sensor storage
+        self.sensors: dict[str, SensorConfig] = {s.identifier: s for s in SENSORS}
+
+        # Initialize MediaPlayerAttributes dataclass
+        self.attributes = MediaPlayerAttributes(
+            STATE=media_player.States.UNKNOWN,
+            SOURCE=None,
+            SOURCE_LIST=self._source_list,
+            MUTED=None,
+            SOUND_MODE=None,
+            SOUND_MODE_LIST=self._sound_mode_list,
+            VOLUME=None,
+        )
 
     @property
     def identifier(self) -> str:
@@ -83,9 +86,13 @@ class YamahaAVR(StatelessHTTPDevice):
         return self._device_config.address
 
     @property
-    def state(self) -> str | None:
+    def state(self) -> media_player.States:
         """Return the device state."""
-        return self._state.upper()
+        return (
+            self.attributes.STATE
+            if self.attributes.STATE
+            else media_player.States.UNKNOWN
+        )
 
     @property
     def source_list(self) -> list[str]:
@@ -95,7 +102,7 @@ class YamahaAVR(StatelessHTTPDevice):
     @property
     def source(self) -> str:
         """Return the current input source."""
-        return self._active_source
+        return self.attributes.SOURCE if self.attributes.SOURCE else ""
 
     @property
     def zone(self) -> str:
@@ -105,29 +112,17 @@ class YamahaAVR(StatelessHTTPDevice):
     @property
     def muted(self) -> bool:
         """Return whether the device is muted."""
-        return self._muted
+        return self.attributes.MUTED if self.attributes.MUTED is not None else False
 
     @property
     def sound_mode(self) -> str | None:
         """Return the current sound mode."""
-        return self._sound_mode if self._sound_mode else ""
+        return self.attributes.SOUND_MODE if self.attributes.SOUND_MODE else ""
 
     @property
     def speaker_pattern_count(self) -> int:
         """Return the number of available speaker patterns."""
         return self._speaker_pattern_count
-
-    @property
-    def attributes(self) -> dict[str, Any]:
-        """Return the device attributes."""
-        updated_data = {
-            MediaAttr.STATE: self.state,
-        }
-        if self.source_list:
-            updated_data[MediaAttr.SOURCE_LIST] = self.source_list
-        if self.source:
-            updated_data[MediaAttr.SOURCE] = self.source
-        return updated_data
 
     @property
     def sound_mode_list(self) -> list[str]:
@@ -144,9 +139,39 @@ class YamahaAVR(StatelessHTTPDevice):
         """Return the current volume as a percentage (0-100) for the remote UI slider."""
         # Convert internal volume (0-161) to percentage (0-100)
         percentage = int((self._volume_level / self.max_volume) * 100)
-        
+
         # Clamp to 0-100 range
         return max(0, min(100, percentage))
+
+    def get_display_volume(self) -> int:
+        """Return volume in the format specified by user's volume_mode config.
+
+        - absolute: 0-98 scale (numeric mode)
+        - relative: -79.5 to +10 scale (dB mode)
+        """
+        user_mode = self._device_config.volume_mode
+        actual_mode = self._actual_volume.get("mode", "db")
+        actual_value = self._actual_volume.get("value", 0.0)
+
+        # If user wants absolute (0-98 scale)
+        if user_mode == "absolute":
+            if actual_mode == "numeric":
+                # Already in numeric mode, return as-is
+                return int(actual_value)
+            else:
+                # Convert from dB (-80.5 to +16.5) to numeric (0 to 97)
+                # Formula: numeric = (dB + 80.5) / 97 * 97 = dB + 80.5
+                return int(actual_value + 80.5)
+
+        # If user wants relative (-79.5 to +10 dB scale)
+        else:
+            if actual_mode == "db":
+                # Already in dB mode, return as-is
+                return int(actual_value)
+            else:
+                # Convert from numeric (0 to 97) to dB (-80.5 to +16.5)
+                # Formula: dB = numeric - 80.5
+                return int(actual_value - 80.5)
 
     @property
     def volume_mode(self) -> str:
@@ -187,18 +212,30 @@ class YamahaAVR(StatelessHTTPDevice):
 
     async def _update_attributes(self) -> None:
         _LOG.debug("[%s] Updating attributes", self.log_id)
-        update = {}
 
         async with aiohttp.ClientSession() as session:
             try:
                 avr = AsyncDevice(session, self.address)
                 status = await avr.request(Zone.get_status(zone=self.zone))
                 status = await status.json()
-                self._state = status.get("power", PowerState.OFF)
-                self._muted = status.get("mute", False)
-                self._active_source = status.get("input", "")
-                self._active_source_text = status.get("input_text", "")
-                self._sound_mode = status.get("sound_program", None)
+
+                # Update attributes from status
+                power_str = status.get("power", "off").lower()
+                if power_str == "on":
+                    self.attributes.STATE = media_player.States.ON
+                elif power_str == "standby":
+                    self.attributes.STATE = media_player.States.STANDBY
+                else:
+                    self.attributes.STATE = media_player.States.OFF
+
+                self.attributes.MUTED = status.get("mute", False)
+                active_source_text = status.get("input_text", "")
+                if not active_source_text:
+                    active_source_text = status.get("input", "")
+                self.attributes.SOURCE = (
+                    active_source_text if active_source_text else ""
+                )
+                self.attributes.SOUND_MODE = status.get("sound_program", None)
 
                 # Safely extract nested actual_volume data
                 self._actual_volume = status.get("actual_volume", {})
@@ -258,33 +295,20 @@ class YamahaAVR(StatelessHTTPDevice):
                 "phono",
             ]
 
-        try:
-            update[MediaAttr.STATE] = self.state
+        # Update remaining attributes
+        self.attributes.SOURCE_LIST = self.source_list
+        self.attributes.SOUND_MODE_LIST = self.sound_mode_list
+        self.attributes.VOLUME = self.get_display_volume()
 
-            source_text = self.source.upper()
-            if self._active_source_text:
-                source_text = self._active_source_text
-            update[MediaAttr.SOURCE] = source_text
-            update[MediaAttr.MUTED] = self.muted
-            update[MediaAttr.SOURCE_LIST] = self.source_list
-            update[MediaAttr.SOUND_MODE] = self.sound_mode
-            update[MediaAttr.SOUND_MODE_LIST] = self.sound_mode_list
-            update[MediaAttr.VOLUME] = self.volume_percent
+        # Update sensor values from status
+        self._update_sensors_from_status(status)
 
-        except Exception:  # pylint: disable=broad-exception-caught
-            _LOG.exception("[%s] App list: protocol error", self.log_id)
-
-        self.events.emit(
-            DeviceEvents.UPDATE,
-            create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
-            update,
-        )
+        # Framework will call get_device_attributes() to retrieve updated attributes
 
     async def send_command(
         self, command: str, group: str, *args: Any, **kwargs: Any
     ) -> str:
         """Send a command to the AVR."""
-        update = {}
         res: str = ""
         try:
             async with aiohttp.ClientSession() as session:
@@ -312,11 +336,9 @@ class YamahaAVR(StatelessHTTPDevice):
                                 code = kwargs.get("code", "")
                                 res = await avr.request(System.send_ir_code(code))
                             case "setHdmiOut1":
-                                enabled = kwargs.get("enabled", True)
-                                res = await avr.request(System.set_hdmi_out_1(enabled))
+                                res = await avr.request(System.set_hdmi_out_1("True"))
                             case "setHdmiOut2":
-                                enabled = kwargs.get("enabled", True)
-                                res = await avr.request(System.set_hdmi_out_2(enabled))
+                                res = await avr.request(System.set_hdmi_out_2("True"))
                             case "setSpeakerPattern":
                                 pattern = kwargs.get("pattern")
                                 if pattern is None:
@@ -347,15 +369,33 @@ class YamahaAVR(StatelessHTTPDevice):
 
                                 match power:
                                     case "on":
-                                        update[MediaAttr.STATE] = PowerState.ON
+                                        self.attributes.STATE = media_player.States.ON
                                     case "standby":
-                                        update[MediaAttr.STATE] = PowerState.STANDBY
+                                        self.attributes.STATE = (
+                                            media_player.States.STANDBY
+                                        )
+
+                                # Update sensors after power change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setSleep":
                                 sleep = int(kwargs["sleep"])  # 0,30,60,90,120
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
+
+                                # Update sensors after sleep change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setVolume":
                                 volume_cmd = kwargs.get("volume")
-                                
+
                                 # Handle up/down commands directly
                                 if volume_cmd in ("up", "down"):
                                     step = float(self.device_config.volume_step)
@@ -372,7 +412,7 @@ class YamahaAVR(StatelessHTTPDevice):
                                     res = await avr.request(
                                         Zone.set_volume(zone, volume, 1)
                                     )
-                                
+
                                 await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
@@ -380,8 +420,10 @@ class YamahaAVR(StatelessHTTPDevice):
                                 # Extract actual_volume data and internal volume
                                 self._actual_volume = status.get("actual_volume", {})
                                 self._volume_level = status.get("volume", 0)
+                                self.attributes.VOLUME = self.get_display_volume()
 
-                                update[MediaAttr.VOLUME] = self.volume_percent
+                                # Update sensors
+                                self._update_sensors_from_status(status)
                             case "setMute":
                                 mute = kwargs["mute"]  # True, False
                                 if mute == "toggle":
@@ -392,8 +434,15 @@ class YamahaAVR(StatelessHTTPDevice):
                                     current_status = await current_status.json()
                                     mute = not current_status["mute"]
                                 res = await avr.request(Zone.set_mute(zone, mute))
-                                self._muted = mute
-                                update[MediaAttr.MUTED] = mute
+                                self.attributes.MUTED = mute
+
+                                # Update sensors after mute change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "controlCursor":
                                 cursor = kwargs["cursor"]
                                 res = await avr.request(
@@ -408,48 +457,83 @@ class YamahaAVR(StatelessHTTPDevice):
                                 res = await avr.request(
                                     Zone.set_input(zone, input_source, mode=None)
                                 )
-                                self._active_source = input_source
 
                                 await asyncio.sleep(0.1)
                                 res = await avr.request(Zone.get_status(self.zone))
                                 status = await res.json()
 
-                                self._active_source_text = input_source
-                                if (
-                                    status.get("input") == input_source
-                                ):  # We have the new source
-                                    self._active_source_text = status.get("input_text")
+                                source_text = status.get("input_text", input_source)
+                                if not source_text:
+                                    source_text = input_source
+                                self.attributes.SOURCE = source_text
 
-                                update[MediaAttr.SOURCE] = self._active_source_text
+                                # Update sensors
+                                self._update_sensors_from_status(status)
                             case "setSoundMode":
                                 sound_mode = kwargs["sound_mode"]
                                 sound_mode = sound_mode.lower()
                                 res = await avr.request(
                                     Zone.set_sound_program(zone, sound_mode)
                                 )
-                                self._sound_mode = sound_mode
-                                update[MediaAttr.SOUND_MODE] = sound_mode
+                                self.attributes.SOUND_MODE = sound_mode
+
+                                # Update sensors after sound mode change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setDirect":
                                 res = await avr.request(Zone.set_direct(zone, "True"))
-                                self._sound_mode = "Direct"
-                                update[MediaAttr.SOUND_MODE] = "Direct"
+                                self.attributes.SOUND_MODE = "Direct"
+
+                                # Update sensors after direct mode change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setPureDirect":
                                 res = await avr.request(
                                     Zone.set_pure_direct(zone, "True")
                                 )
-                                self._sound_mode = "Pure Direct"
-                                update[MediaAttr.SOUND_MODE] = "Pure Direct"
+                                self.attributes.SOUND_MODE = "Pure Direct"
+
+                                # Update sensors after pure direct mode change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setClearVoice":
                                 res = await avr.request(
                                     Zone.set_clear_voice(zone, "True")
                                 )
-                                self._sound_mode = "Clear Voice"
-                                update[MediaAttr.SOUND_MODE] = "Clear Voice"
+                                self.attributes.SOUND_MODE = "Clear Voice"
+
+                                # Update sensors after clear voice mode change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setSurroundAI":
                                 enabled = kwargs["enabled"]  # True, False
                                 res = await avr.request(
                                     Zone.set_surround_ai(zone, enable=enabled)
                                 )
+
+                                # Update sensors after surround AI change
+                                await asyncio.sleep(0.1)
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
+                                status = await status_res.json()
+                                self._update_sensors_from_status(status)
                             case "setScene":
                                 scene = int(kwargs["scene"])  # 1..8
                                 res = await avr.request(Zone.set_scene(zone, scene))
@@ -500,11 +584,6 @@ class YamahaAVR(StatelessHTTPDevice):
                                     NetUSB.recall_preset(zone=zone, num=int(num))
                                 )
 
-            self.events.emit(
-                DeviceEvents.UPDATE,
-                create_entity_id(EntityTypes.MEDIA_PLAYER, self.identifier),
-                update,
-            )
             return res
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOG.error(
@@ -536,7 +615,8 @@ class YamahaAVR(StatelessHTTPDevice):
 
         Args:
             kwargs: Command arguments which may contain:
-                - volume_level: integer percentage (0-100) to convert to integer percentage of max_volume
+                - volume_level: integer percentage (0-100) to convert to integer
+                percentage of max_volume
 
         Returns:
             tuple: (volume_command, step) where volume_command is 'up', 'down', or integer
@@ -565,3 +645,127 @@ class YamahaAVR(StatelessHTTPDevice):
                 volume = 0
 
         return int(volume)
+
+    def _sensor_attributes(self, sensor_id: str) -> SensorAttributes:
+        """Return sensor attributes for the given sensor identifier.
+
+        Args:
+            sensor_id: Sensor identifier (e.g., 'sound_program', 'surround_ai')
+
+        Returns:
+            SensorAttributes dataclass with STATE, VALUE, and optionally UNIT
+        """
+        sensor_config = self.sensors.get(sensor_id)
+        if not sensor_config:
+            return SensorAttributes()
+
+        # Get value directly from sensor config
+        value = sensor_config.value
+
+        # Determine sensor state based on AVR power state
+        sensor_state = SensorStates.UNAVAILABLE
+        if self.state == media_player.States.ON:
+            sensor_state = SensorStates.ON
+        elif self.state in (media_player.States.STANDBY, media_player.States.OFF):
+            sensor_state = SensorStates.UNAVAILABLE
+
+        # Return value if AVR is ON, otherwise use default
+        return SensorAttributes(
+            STATE=sensor_state,
+            VALUE=value
+            if self.state == media_player.States.ON and value is not None
+            else sensor_config.default,
+            UNIT=sensor_config.unit,
+        )
+
+    def _update_sensors_from_status(self, status: dict[str, Any]) -> None:
+        """Update sensor values from status response.
+
+        Args:
+            status: Status dictionary from Zone.get_status()
+        """
+        # Extract nested structures
+        tone_control = status.get("tone_control", {})
+        auro_3d = status.get("auro_3d", {})
+
+        # Update sensor values from status
+        sensor_mappings = {
+            "input": status.get("input"),
+            "input_text": status.get("input_text"),
+            "volume": status.get("volume"),
+            "mute": status.get("mute"),
+            "sound_program": status.get("sound_program"),
+            "surr_decoder_type": status.get("surr_decoder_type"),
+            "surround_ai": status.get("surround_ai"),
+            "pure_direct": status.get("pure_direct"),
+            "enhancer": status.get("enhancer"),
+            "tone_control_mode": tone_control.get("mode"),
+            "bass": tone_control.get("bass"),
+            "treble": tone_control.get("treble"),
+            "dialogue_level": status.get("dialogue_level"),
+            "dialogue_lift": status.get("dialogue_lift"),
+            "subwoofer_volume": status.get("subwoofer_volume"),
+            "link_control": status.get("link_control"),
+            "link_audio_delay": status.get("link_audio_delay"),
+            "contents_display": status.get("contents_display"),
+            "party_enable": status.get("party_enable"),
+            "extra_bass": status.get("extra_bass"),
+            "adaptive_drc": status.get("adaptive_drc"),
+            "dts_dialogue_control": status.get("dts_dialogue_control"),
+            "adaptive_dsp_level": status.get("adaptive_dsp_level"),
+            "distribution_enable": status.get("distribution_enable"),
+            "sleep": status.get("sleep"),
+            "auro_3d_listening_mode": auro_3d.get("listening_mode"),
+            "auro_matic_preset": auro_3d.get("auro_matic_preset"),
+            "auro_matic_strength": auro_3d.get("auro_matic_strength"),
+        }
+
+        # Track which sensors have changed values
+        changed_sensors = set()
+
+        for sensor_id, value in sensor_mappings.items():
+            sensor = self.sensors.get(sensor_id)
+            if sensor and value is not None:
+                # Only mark as changed if value is different
+                if sensor.value != value:
+                    sensor.value = value
+                    changed_sensors.add(sensor_id)
+
+        # Always trigger sensor entity state refresh (even when AVR is off)
+        if self.driver and changed_sensors:
+            # Get all sensor entities from the driver
+            sensor_entities = self.driver.filter_entities_by_type(
+                EntityTypes.SENSOR, EntitySource.CONFIGURED
+            )
+
+            # Only refresh sensors that have changed
+            for entity in sensor_entities:
+                # Entity ID format: sensor.{device_id}.{sensor_id}
+                for sensor_key in changed_sensors:
+                    if entity.id.endswith(f".{sensor_key}"):
+                        entity.refresh_state()  # ty:ignore[unresolved-attribute]
+                        break
+
+    def get_device_attributes(
+        self, entity_id: str
+    ) -> MediaPlayerAttributes | SensorAttributes:
+        """
+        Return device attributes for the given entity.
+
+        Called by framework when refreshing entity state to retrieve current attributes.
+        For sensor entities, extracts the sensor identifier from entity_id and returns sensor attributes.
+
+        :param entity_id: Entity identifier (format: sensor.{device_id}.{sensor_id} for sensors)
+        :return: MediaPlayerAttributes for media player, SensorAttributes for sensors
+        """
+        # Check if this is a sensor entity by looking for the pattern
+        if "sensor." in entity_id:
+            # Extract sensor identifier from entity_id using split
+            # Format: sensor.{device_id}.{sensor_id}
+            parts = entity_id.split(".", 2)
+            if len(parts) >= 3:
+                sensor_id = parts[2]
+                return self._sensor_attributes(sensor_id)
+
+        # Default to media player attributes
+        return self.attributes

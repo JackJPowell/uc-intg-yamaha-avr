@@ -10,46 +10,11 @@ from typing import Any
 
 import aiohttp
 from const import YamahaConfig
-from pyamaha import AsyncDevice, System
+from pyamaha import AsyncDevice, System, Zone
 from ucapi import IntegrationSetupError, RequestUserInput, SetupError
 from ucapi_framework import BaseSetupFlow
 
 _LOG = logging.getLogger(__name__)
-
-_MANUAL_INPUT_SCHEMA = RequestUserInput(
-    {"en": "Yamaha AVR Setup"},
-    [
-        {
-            "id": "info",
-            "label": {
-                "en": "Setup Information",
-            },
-            "field": {
-                "label": {
-                    "value": {
-                        "en": (
-                            "Please supply the following settings for your Yamaha AVR."
-                        ),
-                    }
-                }
-            },
-        },
-        {
-            "field": {"text": {"value": ""}},
-            "id": "address",
-            "label": {
-                "en": "IP Address",
-            },
-        },
-        {
-            "field": {"text": {"value": "1"}},
-            "id": "step",
-            "label": {
-                "en": "Volume Step",
-            },
-        },
-    ],
-)
 
 
 class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
@@ -65,7 +30,75 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
 
         :return: RequestUserInput for manual entry
         """
-        return _MANUAL_INPUT_SCHEMA
+        return RequestUserInput(
+            {"en": "Yamaha AVR Setup"},
+            [
+                {
+                    "id": "info",
+                    "label": {
+                        "en": "Setup Information",
+                    },
+                    "field": {
+                        "label": {
+                            "value": {
+                                "en": (
+                                    "Please supply the following settings for your Yamaha AVR."
+                                ),
+                            }
+                        }
+                    },
+                },
+                {
+                    "field": {"text": {"value": ""}},
+                    "id": "address",
+                    "label": {
+                        "en": "IP Address",
+                    },
+                },
+                {
+                    "field": {"text": {"value": "1"}},
+                    "id": "step",
+                    "label": {
+                        "en": "Volume Step",
+                    },
+                },
+                {
+                    "id": "volume_mode_info",
+                    "label": {
+                        "en": "Volume Mode",
+                    },
+                    "field": {
+                        "label": {
+                            "value": {
+                                "en": (
+                                    "To use R3 slider for volume, you must select Absolute. "
+                                    "Otherwise, choose the option that matches your receiver."
+                                ),
+                            }
+                        }
+                    },
+                },
+                {
+                    "field": {
+                        "dropdown": {
+                            "value": "",
+                            "items": [
+                                {
+                                    "id": "",
+                                    "label": {"en": "Auto-detect from receiver"},
+                                },
+                                {"id": "relative", "label": {"en": "Relative"}},
+                                {"id": "absolute", "label": {"en": "Absolute"}},
+                            ],
+                        }
+                    },
+                    "id": "volume_mode",
+                    "label": {
+                        "en": "Volume Mode",
+                    },
+                },
+            ],
+        )
 
     def get_additional_discovery_fields(self) -> list[dict]:
         """
@@ -80,7 +113,39 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                 "label": {
                     "en": "Volume Step",
                 },
-            }
+            },
+            {
+                "id": "volume_mode_info",
+                "label": {
+                    "en": "Volume Mode",
+                },
+                "field": {
+                    "label": {
+                        "value": {
+                            "en": (
+                                "To use R3 slider for volume, you must select Absolute. "
+                                "Otherwise, choose the option that matches your receiver."
+                            ),
+                        }
+                    }
+                },
+            },
+            {
+                "field": {
+                    "dropdown": {
+                        "value": "",
+                        "items": [
+                            {"id": "", "label": {"en": "Auto-detect from receiver"}},
+                            {"id": "relative", "label": {"en": "Relative"}},
+                            {"id": "absolute", "label": {"en": "Absolute"}},
+                        ],
+                    }
+                },
+                "id": "volume_mode",
+                "label": {
+                    "en": "Volume Mode",
+                },
+            },
         ]
 
     async def query_device(
@@ -89,14 +154,16 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
         """
         Helper method to create device configuration from IP address.
 
-        :param input_values: Dictionary containing 'address' (device IP address) and 'step' (volume step size).
+        :param input_values: Dictionary containing 'address' (device IP address)
+        and 'step' (volume step size).
         :return: Yamaha device configuration
         :raises IntegrationSetupError: If device setup fails
         """
         address = input_values.get("address")
         step = input_values.get("step", "1")
+        volume_mode = input_values.get("volume_mode", "")
         if not address:
-            return _MANUAL_INPUT_SCHEMA
+            return self.get_manual_entry_form()
         _LOG.debug("Connecting to Yamaha AVR at %s", address)
 
         try:
@@ -108,6 +175,8 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                 data = await res.json()
                 res = await dev.request(System.get_features())
                 features = await res.json()
+                res = await dev.request(Zone.get_status("main"))
+                status = await res.json()
 
             input_list = next(
                 (
@@ -125,6 +194,27 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                 ),
                 [],
             )
+
+            # If volume_mode is not selected, detect from API
+            if not volume_mode:
+                # Check actual_volume.mode from status response
+                # "db" = relative, "numeric" = absolute
+                actual_volume = status.get("actual_volume", {})
+                actual_volume_mode = actual_volume.get("mode", "")
+
+                if actual_volume_mode == "numeric":
+                    volume_mode = "absolute"
+                elif actual_volume_mode == "db":
+                    volume_mode = "relative"
+                else:
+                    # Default to relative if we can't determine
+                    volume_mode = "relative"
+
+                _LOG.debug(
+                    "Auto-detected volume mode: %s (actual_volume.mode: %s)",
+                    volume_mode,
+                    actual_volume_mode,
+                )
 
             _LOG.debug("Yamaha AVR input list: %s", input_list)
             _LOG.debug("Yamaha AVR sound modes: %s", sound_modes)
@@ -152,6 +242,7 @@ class YamahaSetupFlow(BaseSetupFlow[YamahaConfig]):
                 name=data.get("model_name"),
                 address=address,
                 volume_step=step,
+                volume_mode=volume_mode,
                 input_list=input_list,
                 sound_modes=sound_modes,
             )

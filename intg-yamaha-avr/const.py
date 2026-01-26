@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum, IntEnum, StrEnum
+from typing import Final
 
 from ucapi.media_player import States as MediaStates
 
@@ -20,8 +21,26 @@ class YamahaConfig:
     """List of inputs for the device, if available."""
     volume_step: str = "1"
     """Volume step for the device, default is 1. Can be set to '0.5' or '2'."""
+    volume_mode: str = "relative"
+    """Volume mode for the device, either 'relative' or 'absolute'. Default is 'relative'."""
     sound_modes: list[str] | None = None
     """List of sound modes for the device, if available."""
+
+
+@dataclass
+class SensorConfig:
+    """Configuration for a sensor entity."""
+
+    identifier: str
+    """Unique identifier for the sensor (e.g., 'sound_program')."""
+    name: str
+    """Human-readable name for the sensor."""
+    unit: str | None = None
+    """Unit of measurement (optional)."""
+    default: str | int | float = ""
+    """Default value when sensor is unavailable."""
+    value: str | int | float | bool | None = None
+    """Current runtime value of the sensor."""
 
 
 class SimpleCommands(str, Enum):
@@ -90,6 +109,39 @@ class IrCodes(StrEnum):
     """IR codes for the Yamaha AVR."""
 
     HOME = "7F016698"  # Stub code for Home button
+
+
+# Sensor configurations
+SENSORS: Final[tuple[SensorConfig, ...]] = (
+    SensorConfig(identifier="input", name="Input"),
+    SensorConfig(identifier="input_text", name="Input Text"),
+    SensorConfig(identifier="volume", name="Volume"),
+    SensorConfig(identifier="mute", name="Mute"),
+    SensorConfig(identifier="sound_program", name="Sound Program"),
+    SensorConfig(identifier="surr_decoder_type", name="Surround Decoder Type"),
+    SensorConfig(identifier="surround_ai", name="Surround AI"),
+    SensorConfig(identifier="pure_direct", name="Pure Direct"),
+    SensorConfig(identifier="enhancer", name="Enhancer"),
+    SensorConfig(identifier="tone_control_mode", name="Tone Control Mode"),
+    SensorConfig(identifier="bass", name="Bass", unit="dB"),
+    SensorConfig(identifier="treble", name="Treble", unit="dB"),
+    SensorConfig(identifier="dialogue_level", name="Dialogue Level"),
+    SensorConfig(identifier="dialogue_lift", name="Dialogue Lift"),
+    SensorConfig(identifier="subwoofer_volume", name="Subwoofer Volume", unit="dB"),
+    SensorConfig(identifier="link_control", name="Link Control"),
+    SensorConfig(identifier="link_audio_delay", name="Link Audio Delay"),
+    SensorConfig(identifier="contents_display", name="Contents Display"),
+    SensorConfig(identifier="party_enable", name="Party Mode"),
+    SensorConfig(identifier="extra_bass", name="Extra Bass"),
+    SensorConfig(identifier="adaptive_drc", name="Adaptive DRC"),
+    SensorConfig(identifier="dts_dialogue_control", name="DTS Dialogue Control"),
+    SensorConfig(identifier="adaptive_dsp_level", name="Adaptive DSP Level"),
+    SensorConfig(identifier="distribution_enable", name="Distribution Enable"),
+    SensorConfig(identifier="sleep", name="Sleep Timer", unit="min"),
+    SensorConfig(identifier="auro_3d_listening_mode", name="Auro-3D Listening Mode"),
+    SensorConfig(identifier="auro_matic_preset", name="Auro-Matic Preset"),
+    SensorConfig(identifier="auro_matic_strength", name="Auro-Matic Strength"),
+)
 
 
 class States(IntEnum):

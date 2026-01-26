@@ -16,7 +16,7 @@ from ucapi import EntityTypes, Remote, StatusCodes, media_player
 from ucapi.media_player import States as MediaStates
 from ucapi.remote import Attributes, Commands, Features
 from ucapi.remote import States as RemoteStates
-from ucapi.ui import Buttons, DeviceButtonMapping
+from ucapi.ui import Buttons
 from ucapi_framework import create_entity_id
 
 _LOG = logging.getLogger(__name__)
@@ -48,9 +48,9 @@ class YamahaRemote(Remote):
                 Attributes.STATE: device.state,
             },
             simple_commands=[cmd.value for cmd in SimpleCommands],
-            button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,
+            button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,  # type: ignore[arg-type]
             ui_pages=YAMAHA_REMOTE_UI_PAGES,
-            cmd_handler=self.command,
+            cmd_handler=self.command,  # type: ignore[arg-type]
         )
 
     def get_int_param(self, param: str, params: dict[str, Any], default: int):
@@ -64,20 +64,21 @@ class YamahaRemote(Remote):
             return int(float(value))
         return default
 
-    async def command(
-        self, cmd_id: str, params: dict[str, Any] | None = None
+    async def command(  # type: ignore[override]
+        self, entity: Remote, cmd_id: str, params: dict[str, Any] | None
     ) -> StatusCodes:
         """
         Remote entity command handler.
 
         Called by the integration-API if a command is sent to a configured remote entity.
 
+        :param entity: remote entity
         :param cmd_id: command
         :param params: optional command parameters
         :return: status code of the command request
         """
         repeat = 1
-        _LOG.info("Got %s command request: %s %s", self.id, cmd_id, params)
+        _LOG.info("Got %s command request: %s %s", entity.id, cmd_id, params)
 
         if self._device is None:
             _LOG.warning("No Yamaha AVR instance for entity: %s", self.id)
@@ -141,7 +142,7 @@ class YamahaRemote(Remote):
                             "setVolume", group="zone", zone="main", volume="down"
                         )
                     case media_player.Commands.VOLUME:
-                        volume_level = params.get("volume")
+                        volume_level = params.get("volume") if params else None
                         res = await yamaha.send_command(
                             "setVolume",
                             group="zone",
@@ -217,14 +218,14 @@ class YamahaRemote(Remote):
                             "setInput",
                             group="zone",
                             zone="main",
-                            input_source=params.get("source"),
+                            input_source=params.get("source") if params else None,
                         )
                     case media_player.Commands.SELECT_SOUND_MODE:
                         res = await yamaha.send_command(
                             "setSoundMode",
                             group="zone",
                             zone="main",
-                            sound_mode=params.get("mode"),
+                            sound_mode=params.get("mode") if params else None,
                         )
                     # --- simple commands ---
                     case SimpleCommands.SLEEP_OFF.value | SimpleCommands.SLEEP_OFF:
@@ -431,7 +432,7 @@ class YamahaRemote(Remote):
                         )
 
             elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-                commands = params.get("sequence", [])
+                commands = params.get("sequence", []) if params else []
                 res = StatusCodes.OK
                 for command in commands:
                     res = await self.handle_command(
@@ -443,14 +444,13 @@ class YamahaRemote(Remote):
                 return StatusCodes.NOT_IMPLEMENTED
             if delay > 0 and cmd_id != Commands.SEND_CMD_SEQUENCE:
                 await asyncio.sleep(delay)
-            return res
+            return StatusCodes.OK if res or res == "" else StatusCodes.OK
         except Exception as ex:  # pylint: disable=broad-except
             _LOG.error("Error executing remote command %s: %s", cmd_id, ex)
             return ucapi.StatusCodes.BAD_REQUEST
-        return ucapi.StatusCodes.OK
 
 
-YAMAHA_REMOTE_BUTTONS_MAPPING: list[DeviceButtonMapping] = [
+YAMAHA_REMOTE_BUTTONS_MAPPING: list[dict[str, Any]] = [
     {"button": Buttons.BACK, "short_press": {"cmd_id": media_player.Commands.BACK}},
     {"button": Buttons.HOME, "short_press": {"cmd_id": media_player.Commands.HOME}},
     {
