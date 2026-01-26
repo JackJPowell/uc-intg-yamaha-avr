@@ -125,10 +125,12 @@ class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
                     await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="up"
                     )
+                    state_changed = True
                 case media_player.Commands.VOLUME_DOWN:
                     await yamaha.send_command(
                         "setVolume", group="zone", zone="main", volume="down"
                     )
+                    state_changed = True
                 case media_player.Commands.VOLUME:
                     volume_level = params.get("volume") if params else None
                     await yamaha.send_command(
@@ -137,18 +139,22 @@ class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
                         zone="main",
                         volume_level=volume_level,
                     )
+                    state_changed = True
                 case media_player.Commands.MUTE:
                     await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute=True
                     )
+                    state_changed = True
                 case media_player.Commands.UNMUTE:
                     await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute=False
                     )
+                    state_changed = True
                 case media_player.Commands.MUTE_TOGGLE:
                     await yamaha.send_command(
                         "setMute", group="zone", zone="main", mute="toggle"
                     )
+                    state_changed = True
                 case media_player.Commands.CURSOR_UP:
                     await yamaha.send_command(
                         "controlCursor", group="zone", zone="main", cursor="up"
@@ -222,48 +228,60 @@ class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="0"
                     )
+                    state_changed = True
                 case SimpleCommands.SLEEP_30.value:
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="30"
                     )
+                    state_changed = True
                 case SimpleCommands.SLEEP_60.value:
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="60"
                     )
+                    state_changed = True
                 case SimpleCommands.SLEEP_90.value:
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="90"
                     )
+                    state_changed = True
                 case SimpleCommands.SLEEP_120.value:
                     await yamaha.send_command(
                         "setSleep", group="zone", zone="main", sleep="120"
                     )
+                    state_changed = True
                 case SimpleCommands.HDMI_OUTPUT_1_ON.value:
                     await yamaha.send_command(
                         "setHdmiOut1", group="system", enabled=True
                     )
+                    state_changed = True
                 case SimpleCommands.HDMI_OUTPUT_1_OFF.value:
                     await yamaha.send_command(
                         "setHdmiOut1", group="system", enabled=False
                     )
+                    state_changed = True
                 case SimpleCommands.HDMI_OUTPUT_2_ON.value:
                     await yamaha.send_command(
                         "setHdmiOut2", group="system", enabled=True
                     )
+                    state_changed = True
                 case SimpleCommands.HDMI_OUTPUT_2_OFF.value:
                     await yamaha.send_command(
                         "setHdmiOut2", group="system", enabled=False
                     )
+                    state_changed = True
                 case SimpleCommands.SOUND_MODE_DIRECT.value:
                     await yamaha.send_command("setDirect", group="zone", zone="main")
+                    state_changed = True
                 case SimpleCommands.SOUND_MODE_PURE.value:
                     await yamaha.send_command(
                         "setPureDirect", group="zone", zone="main"
                     )
+                    state_changed = True
                 case SimpleCommands.SOUND_MODE_CLEAR_VOICE.value:
                     await yamaha.send_command(
                         "setClearVoice", group="zone", zone="main"
                     )
+                    state_changed = True
                 case SimpleCommands.OPTIONS.value:
                     await yamaha.send_command(
                         "controlMenu", group="zone", zone="main", menu="option"
@@ -288,6 +306,7 @@ class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
                     await yamaha.send_command(
                         "setSurroundAI", group="zone", zone="main", enabled="True"
                     )
+                    state_changed = True
                 case (
                     SimpleCommands.SURROUND_AI_OFF.value
                     | SimpleCommands.SURROUND_AI_OFF
@@ -295,6 +314,7 @@ class YamahaMediaPlayer(MediaPlayer, FrameworkEntity):
                     await yamaha.send_command(
                         "setSurroundAI", group="zone", zone="main", enabled="False"
                     )
+                    state_changed = True
                 case (
                     SimpleCommands.FM_1.value
                     | SimpleCommands.FM_2.value
