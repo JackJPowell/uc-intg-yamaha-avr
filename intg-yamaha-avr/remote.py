@@ -50,7 +50,7 @@ class YamahaRemote(Remote):
             simple_commands=[cmd.value for cmd in SimpleCommands],
             button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,  # type: ignore[arg-type]
             ui_pages=YAMAHA_REMOTE_UI_PAGES,
-            cmd_handler=self.command,  # type: ignore[arg-type]
+            cmd_handler=self.command_handler,  # type: ignore[arg-type]
         )
 
     def get_int_param(self, param: str, params: dict[str, Any], default: int):
@@ -64,8 +64,8 @@ class YamahaRemote(Remote):
             return int(float(value))
         return default
 
-    async def command(  # type: ignore[override]
-        self, entity: Remote, cmd_id: str, params: dict[str, Any] | None
+    async def command_handler(
+        self, entity: Remote, cmd_id: str, params: dict[str, Any] | None = None
     ) -> StatusCodes:
         """
         Remote entity command handler.
