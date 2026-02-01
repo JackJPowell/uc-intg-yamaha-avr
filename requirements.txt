@@ -1,6 +1,6 @@
 pyee>=9.0.0
-ucapi==0.5.1
-ucapi-framework==1.8.2
+ucapi==0.5.2
+ucapi-framework==1.8.3
 aiohttp>=3.0.0,<4.0.0
 async-timeout>=5.0.1
 pyamaha-yec==0.6.4
