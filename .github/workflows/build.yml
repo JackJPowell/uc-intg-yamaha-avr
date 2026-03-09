@@ -1,5 +1,5 @@
-# Triggered by version tag creation to build a distribution binary, Docker image, and create a release draft
-name: "Build & Draft Release"
+# Triggered by version tag creation to build a distribution binary, Docker image, and publish a release
+name: "Build & Publish Release"
 
 "on":
   push:
@@ -137,15 +137,49 @@ jobs:
             fi
           done;
 
+      - name: Checkout repository for CHANGELOG
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+
+      - name: Extract changelog entry for version
+        id: changelog
+        run: |
+          VERSION="v${{needs.build.outputs.version}}"
+          # Extract the section between the current version header and the next one
+          BODY=$(awk "/^## \[?${VERSION}\]?/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md)
+          # Fall back to full changelog if no matching section found
+          if [ -z "$BODY" ]; then
+            echo "No changelog entry found for ${VERSION}, falling back to generated notes"
+            echo "USE_GENERATED=true" >> $GITHUB_OUTPUT
+          else
+            echo "USE_GENERATED=false" >> $GITHUB_OUTPUT
+            # Write body to file to avoid quoting issues
+            echo "$BODY" > release_notes.md
+          fi
+
       - name: Create hash file
         run: |
           for filename in *.tar.gz; do echo "sha256  `sha256sum $filename`" >> ${{needs.build.outputs.driver_id}}.hash; done;
 
-      - name: Create release draft
+      - name: Publish release (with changelog)
+        if: steps.changelog.outputs.USE_GENERATED == 'false'
         uses: ncipollo/release-action@v1
         with:
           artifacts: "*.tar.gz,${{needs.build.outputs.driver_id}}.hash"
-          draft: true
+          draft: false
+          generateReleaseNotes: false
+          bodyFile: release_notes.md
+          artifactErrorsFailBuild: true
+          tag: v${{needs.build.outputs.version}}
+
+      - name: Publish release (generated notes fallback)
+        if: steps.changelog.outputs.USE_GENERATED == 'true'
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.tar.gz,${{needs.build.outputs.driver_id}}.hash"
+          draft: false
           generateReleaseNotes: true
           artifactErrorsFailBuild: true
           tag: v${{needs.build.outputs.version}}
