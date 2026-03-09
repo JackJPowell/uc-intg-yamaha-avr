@@ -5,7 +5,13 @@ name: "Build & Release"
   push:
     tags:
       - 'v*'
-
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.2.0, without v prefix)"
+        required: true
+        type: string
+        
 env:
   INTG_NAME: yamaha-avr
   # Python version to use in the builder image. See https://hub.docker.com/r/unfoldedcircle/r2-pyinstaller for possible versions.
