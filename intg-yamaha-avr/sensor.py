@@ -10,14 +10,14 @@ from typing import Any
 from const import YamahaConfig, SensorConfig
 from avr import YamahaAVR
 from ucapi import EntityTypes
-from ucapi.sensor import Attributes, DeviceClasses, Sensor, States
+from ucapi.sensor import Attributes, DeviceClasses, States
 from ucapi_framework import create_entity_id
-from ucapi_framework.entity import Entity as FrameworkEntity
+from ucapi_framework.entities import SensorEntity
 
 _LOG = logging.getLogger(__name__)
 
 
-class YamahaSensor(Sensor, FrameworkEntity):
+class YamahaSensor(SensorEntity):
     """Representation of a Yamaha AVR Sensor entity."""
 
     def __init__(
@@ -26,18 +26,11 @@ class YamahaSensor(Sensor, FrameworkEntity):
         device: YamahaAVR,
         sensor_config: SensorConfig,
     ):
-        """Initialize a Yamaha Sensor entity.
-
-        Args:
-            config_device: Device configuration
-            device: YamahaAVR device instance
-            sensor_config: SensorConfig dataclass with sensor metadata
-        """
+        """Initialize a Yamaha Sensor entity."""
         self._device = device
         self._sensor_id = sensor_config.identifier
 
-        # Set entity_id for FrameworkEntity mixin
-        self._entity_id = create_entity_id(
+        entity_id = create_entity_id(
             EntityTypes.SENSOR, config_device.identifier, sensor_config.identifier
         )
 
@@ -49,22 +42,26 @@ class YamahaSensor(Sensor, FrameworkEntity):
         if sensor_config.unit is not None:
             attributes[Attributes.UNIT] = sensor_config.unit
 
-        _LOG.debug("Initializing sensor entity: %s", self._entity_id)
+        _LOG.debug("Initializing sensor entity: %s", entity_id)
 
         super().__init__(
-            identifier=self._entity_id,
+            identifier=entity_id,
             name=f"{sensor_config.name}",
             features=[],
             attributes=attributes,
             device_class=DeviceClasses.CUSTOM,
         )
 
-    def refresh_state(self) -> None:
-        """Refresh sensor state from device and update entity.
+        self.subscribe_to_device(device)
 
-        This method is called by the device after updating sensor values.
-        It retrieves the current attributes and uses entity.update() to
-        notify the framework.
-        """
+    async def sync_state(self) -> None:
+        """Sync sensor state from device after push_update() or reconnect."""
+        if self._device is None:
+            self.set_unavailable()
+            return
 
-        self.update(self._device.get_device_attributes(self.id))
+        attrs = self._device.get_sensor_attributes(
+            self._device.identifier, self._sensor_id
+        )
+        if attrs is not None:
+            self.update(attrs)

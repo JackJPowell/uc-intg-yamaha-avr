@@ -40,7 +40,38 @@ class SensorConfig:
     default: str | int | float = ""
     """Default value when sensor is unavailable."""
     value: str | int | float | bool | None = None
-    """Current runtime value of the sensor."""
+    """Current runtime value of the sensor.
+
+    This field is the single source of truth shared by both the Sensor entity
+    and any Select entity that represents the same piece of device data.
+    """
+
+
+@dataclass
+class SelectConfig:
+    """Configuration for a select entity.
+
+    A select entity shares runtime state with the corresponding SensorConfig
+    (same identifier).  The device stores the current value once in
+    ``SensorConfig.value``; this dataclass only carries the metadata needed
+    to build and operate the select entity.
+    """
+
+    identifier: str
+    """Unique identifier — must match the corresponding SensorConfig identifier."""
+    name: str
+    """Human-readable name for the select entity."""
+    features_zone_key: str | None = None
+    """Key inside the features zone dict that holds the list of valid options.
+    e.g. 'sound_program_list', 'surr_decoder_type_list'.  None if the options
+    are sourced from a different place (set directly via options)."""
+    features_system_key: str | None = None
+    """Key inside the features system dict that holds the list of valid options.
+    Used when the option list lives under features['system'] rather than the zone."""
+    options: list[str] | None = None
+    """Valid option strings — populated at runtime from System.get_features()."""
+    zone_command: str | None = None
+    """pyamaha Zone method name used to set this value (e.g. 'set_sound_program')."""
 
 
 class SimpleCommands(str, Enum):
@@ -141,6 +172,55 @@ SENSORS: Final[tuple[SensorConfig, ...]] = (
     SensorConfig(identifier="auro_3d_listening_mode", name="Auro-3D Listening Mode"),
     SensorConfig(identifier="auro_matic_preset", name="Auro-Matic Preset"),
     SensorConfig(identifier="auro_matic_strength", name="Auro-Matic Strength"),
+)
+
+# Select configurations.
+# Each identifier MUST match a SensorConfig identifier above — the select and
+# sensor entities share the same runtime value stored in SensorConfig.value.
+# Options lists are populated at runtime from System.get_features().
+SELECTS: Final[tuple[SelectConfig, ...]] = (
+    SelectConfig(
+        identifier="sound_program",
+        name="Sound Program",
+        features_zone_key="sound_program_list",
+        zone_command="set_sound_program",
+    ),
+    SelectConfig(
+        identifier="surr_decoder_type",
+        name="Surround Decoder Type",
+        features_zone_key="surr_decoder_type_list",
+        zone_command="set_surr_decoder_type",
+    ),
+    SelectConfig(
+        identifier="link_control",
+        name="Link Control",
+        features_zone_key="link_control_list",
+        zone_command="set_link_control",
+    ),
+    SelectConfig(
+        identifier="link_audio_delay",
+        name="Link Audio Delay",
+        features_zone_key="link_audio_delay_list",
+        zone_command="set_link_audio_delay",
+    ),
+    SelectConfig(
+        identifier="auro_3d_listening_mode",
+        name="Auro-3D Listening Mode",
+        features_zone_key="auro_3d_listening_mode_list",
+        zone_command="set_auro_3d_listening_mode",
+    ),
+    SelectConfig(
+        identifier="auro_matic_preset",
+        name="Auro-Matic Preset",
+        features_zone_key="auro_matic_preset_list",
+        zone_command="set_auro_matic_preset",
+    ),
+    SelectConfig(
+        identifier="tone_control_mode",
+        name="Tone Control Mode",
+        features_zone_key="tone_control_mode_list",
+        zone_command="set_tone_control_mode",
+    ),
 )
 
 

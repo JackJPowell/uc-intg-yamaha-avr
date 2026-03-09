@@ -12,16 +12,17 @@ from typing import Any
 from avr import YamahaAVR
 import ucapi
 from const import SimpleCommands, YamahaConfig
-from ucapi import EntityTypes, Remote, StatusCodes, media_player
+from ucapi import EntityTypes, StatusCodes, media_player
 from ucapi.media_player import States as MediaStates
-from ucapi.remote import Attributes, Commands, Features
+from ucapi.remote import Attributes, Commands, Features, Remote
 from ucapi.remote import States as RemoteStates
 from ucapi.ui import Buttons
-from ucapi_framework import create_entity_id, Entity
+from ucapi_framework import create_entity_id
+from ucapi_framework.entities import RemoteEntity
 
 _LOG = logging.getLogger(__name__)
 
-YAMAHA_REMOTE_STATE_MAPPING = {
+YAMAHA_REMOTE_STATE_MAPPING: dict[MediaStates, RemoteStates] = {
     MediaStates.UNKNOWN: RemoteStates.UNKNOWN,
     MediaStates.UNAVAILABLE: RemoteStates.UNAVAILABLE,
     MediaStates.OFF: RemoteStates.OFF,
@@ -31,7 +32,7 @@ YAMAHA_REMOTE_STATE_MAPPING = {
 }
 
 
-class YamahaRemote(Remote, Entity):
+class YamahaRemote(RemoteEntity):
     """Representation of a Yamaha AVR Remote entity."""
 
     def __init__(self, config_device: YamahaConfig, device: YamahaAVR):
@@ -48,12 +49,24 @@ class YamahaRemote(Remote, Entity):
                 Attributes.STATE: device.state,
             },
             simple_commands=[cmd.value for cmd in SimpleCommands],
-            button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,  # type: ignore[arg-type]
+            button_mapping=YAMAHA_REMOTE_BUTTONS_MAPPING,
             ui_pages=YAMAHA_REMOTE_UI_PAGES,
-            cmd_handler=self.command_handler,  # type: ignore[arg-type]
+            cmd_handler=self.command_handler,
         )
 
-    def map_entity_states(self, device_state: str) -> str:
+        self.subscribe_to_device(device)
+
+    async def sync_state(self) -> None:
+        """Sync remote state from device after push_update() or reconnect."""
+        if self._device is None:
+            self.set_unavailable()
+            return
+
+        self.update({
+            Attributes.STATE: self.map_entity_states(self._device.state),
+        })
+
+    def map_entity_states(self, device_state: MediaStates) -> RemoteStates:
         """Map media player states to remote states."""
         return YAMAHA_REMOTE_STATE_MAPPING.get(device_state, RemoteStates.UNKNOWN)
 

@@ -15,6 +15,7 @@ from const import YamahaConfig, SENSORS
 from discover import YamahaReceiverDiscovery
 from media_player import YamahaMediaPlayer
 from remote import YamahaRemote
+from select_entity import YamahaSelect
 from sensor import YamahaSensor
 from setup import YamahaSetupFlow
 from ucapi_framework import BaseConfigManager, BaseIntegrationDriver, get_config_path
@@ -39,7 +40,12 @@ async def main():
             lambda cfg, dev: [
                 YamahaSensor(cfg, dev, sensor_config) for sensor_config in SENSORS
             ],
-        ],
+            lambda cfg, dev: [
+                YamahaSelect(cfg, dev, select_config)
+                for select_config in dev.selects.values()
+                if select_config.options  # only register selects with options loaded
+            ],
+        ],  # type: ignore[arg-type]
     )
 
     driver.config_manager = BaseConfigManager(
