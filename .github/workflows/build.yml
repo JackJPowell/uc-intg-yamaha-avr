@@ -1,5 +1,5 @@
-# Triggered by version tag creation to build a distribution binary, Docker image, and publish a release
-name: "Build & Publish Release"
+# Triggered by version tag creation to build a distribution binary, Docker image, and create a release draft
+name: "Build & Release"
 
 "on":
   push:
@@ -123,6 +123,24 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION=${{ needs.build.outputs.version }}
+          # Extract the block between this version's heading and the next heading
+          NOTES=$(awk "/^## v?${VERSION}/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md)
+          # Strip leading/trailing blank lines
+          NOTES=$(echo "$NOTES" | sed '/./,$!d' | sed -e :a -e '/^\s*$/{$d;N;ba}')
+          if [ -z "$NOTES" ]; then
+            NOTES="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
+          fi
+          # Write to file to safely handle multi-line content
+          echo "$NOTES" > release_notes.md
+          cat release_notes.md
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
 
@@ -137,49 +155,16 @@ jobs:
             fi
           done;
 
-      - name: Checkout repository for CHANGELOG
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: CHANGELOG.md
-          sparse-checkout-cone-mode: false
-
-      - name: Extract changelog entry for version
-        id: changelog
-        run: |
-          VERSION="v${{needs.build.outputs.version}}"
-          # Extract the section between the current version header and the next one
-          BODY=$(awk "/^## \[?${VERSION}\]?/{found=1; next} found && /^## /{exit} found{print}" CHANGELOG.md)
-          # Fall back to full changelog if no matching section found
-          if [ -z "$BODY" ]; then
-            echo "No changelog entry found for ${VERSION}, falling back to generated notes"
-            echo "USE_GENERATED=true" >> $GITHUB_OUTPUT
-          else
-            echo "USE_GENERATED=false" >> $GITHUB_OUTPUT
-            # Write body to file to avoid quoting issues
-            echo "$BODY" > release_notes.md
-          fi
-
       - name: Create hash file
         run: |
           for filename in *.tar.gz; do echo "sha256  `sha256sum $filename`" >> ${{needs.build.outputs.driver_id}}.hash; done;
 
-      - name: Publish release (with changelog)
-        if: steps.changelog.outputs.USE_GENERATED == 'false'
+      - name: Create release
         uses: ncipollo/release-action@v1
         with:
           artifacts: "*.tar.gz,${{needs.build.outputs.driver_id}}.hash"
           draft: false
-          generateReleaseNotes: false
           bodyFile: release_notes.md
-          artifactErrorsFailBuild: true
-          tag: v${{needs.build.outputs.version}}
-
-      - name: Publish release (generated notes fallback)
-        if: steps.changelog.outputs.USE_GENERATED == 'true'
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "*.tar.gz,${{needs.build.outputs.driver_id}}.hash"
-          draft: false
-          generateReleaseNotes: true
+          generateReleaseNotes: false
           artifactErrorsFailBuild: true
           tag: v${{needs.build.outputs.version}}
