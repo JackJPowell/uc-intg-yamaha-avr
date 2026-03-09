@@ -515,7 +515,7 @@ wheels = [
 
 [[package]]
 name = "uc-intg-yamaha-avr"
-version = "1.1.4"
+version = "1.1.6"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -537,7 +537,7 @@ requires-dist = [
     { name = "pyee", specifier = ">=9.0.0" },
     { name = "ssdpy", specifier = "==0.4.1" },
     { name = "ucapi", specifier = "==0.5.2" },
-    { name = "ucapi-framework", specifier = "==1.8.4" },
+    { name = "ucapi-framework", specifier = "==1.9.0b4" },
 ]
 
 [[package]]
@@ -557,16 +557,16 @@ wheels = [
 
 [[package]]
 name = "ucapi-framework"
-version = "1.8.4"
+version = "1.9.0b4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "pyee" },
     { name = "ucapi" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/25/0fb2e03984bd6b24443597ccfb1625cb4fb8d98c61a63c638ea8955b5fdc/ucapi_framework-1.8.4.tar.gz", hash = "sha256:1865452e32727ffb536c0480864da87e109b37df04326b7ac1e9d2984492f9b8", size = 127101, upload-time = "2026-02-08T15:10:18.501Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/87/7ae2ece3674d42ce4e7a5280094c9bdf82435eac0beca04c4ce80b2b523b/ucapi_framework-1.9.0b4.tar.gz", hash = "sha256:6840a866d3097264b655fa042e65e224c6668e727f1da2375ab12f0f21453b6a", size = 149722, upload-time = "2026-03-05T01:33:23.867Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ab/c5/9fc9fc6901605f90f9bef34f5fc8f37822a596b31c59dc47cfaef4b1739f/ucapi_framework-1.8.4-py3-none-any.whl", hash = "sha256:09bd2b9ca3e0266550137f9d0e9fcece94e4c57befce53839c75b1927fd437d8", size = 74101, upload-time = "2026-02-08T15:10:16.662Z" },
+    { url = "https://files.pythonhosted.org/packages/51/26/be37bc3b3b5401a07cd037b1c8fab6d598d519ba5c555be9edcf3aed4c69/ucapi_framework-1.9.0b4-py3-none-any.whl", hash = "sha256:387d0c02dcfd05f3beb8a3755553393b8ec11c44e7d97f6c610317440467d40e", size = 96756, upload-time = "2026-03-05T01:33:22.358Z" },
 ]
 
 [[package]]
