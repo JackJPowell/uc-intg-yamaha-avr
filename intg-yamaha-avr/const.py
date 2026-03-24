@@ -178,6 +178,9 @@ SENSORS: Final[tuple[SensorConfig, ...]] = (
 # Each identifier MUST match a SensorConfig identifier above — the select and
 # sensor entities share the same runtime value stored in SensorConfig.value.
 # Options lists are populated at runtime from System.get_features().
+# Only selects with a direct single-argument pyamaha Zone setter are included.
+# Note: auro_3d_listening_mode is intentionally omitted — those programs appear
+# inside sound_program_list and are already covered by the Sound Program select.
 SELECTS: Final[tuple[SelectConfig, ...]] = (
     SelectConfig(
         identifier="sound_program",
@@ -204,22 +207,10 @@ SELECTS: Final[tuple[SelectConfig, ...]] = (
         zone_command="set_link_audio_delay",
     ),
     SelectConfig(
-        identifier="auro_3d_listening_mode",
-        name="Auro-3D Listening Mode",
-        features_zone_key="auro_3d_listening_mode_list",
-        zone_command="set_auro_3d_listening_mode",
-    ),
-    SelectConfig(
         identifier="auro_matic_preset",
         name="Auro-Matic Preset",
         features_zone_key="auro_matic_preset_list",
         zone_command="set_auro_matic_preset",
-    ),
-    SelectConfig(
-        identifier="tone_control_mode",
-        name="Tone Control Mode",
-        features_zone_key="tone_control_mode_list",
-        zone_command="set_tone_control_mode",
     ),
 )
 

@@ -300,11 +300,16 @@ class YamahaAVR(StatelessHTTPDevice):
                     # Populate select options from the zone features dict.
                     # Only keys present in the actual features response are used,
                     # so selects not supported by this receiver get empty options.
+                    # "prev", "next", "toggle" are navigation-only entries that
+                    # cannot be set directly and must be excluded from options.
+                    _NAV_ONLY = {"prev", "next", "toggle"}
                     for select_cfg in self.selects.values():
                         if select_cfg.features_zone_key:
                             opts = main_zone.get(select_cfg.features_zone_key)
                             if opts:
-                                select_cfg.options = [str(o) for o in opts]
+                                select_cfg.options = [
+                                    str(o) for o in opts if str(o) not in _NAV_ONLY
+                                ]
                                 _LOG.debug(
                                     "[%s] Select '%s' options loaded: %s",
                                     self.log_id,
