@@ -1,6 +1,6 @@
 [project]
 name = "uc-intg-yamaha-avr"
-version = "1.2.2"
+version = "1.2.3"
 description = "An Unfolded Circle integration for Yamaha AV Receivers"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -10,7 +10,7 @@ dependencies = [
     "ucapi==0.5.2",
     "ucapi-framework==1.9.1",
     "aiohttp>=3.0.0,<4.0.0",
-    "pyamaha-yec==0.6.4",
+    "pyamaha-yec==0.7.0",
     "defusedxml==0.7.1",
     "ssdpy==0.4.1",
 ]
