@@ -62,9 +62,11 @@ class YamahaRemote(RemoteEntity):
             self.set_unavailable()
             return
 
-        self.update({
-            Attributes.STATE: self.map_entity_states(self._device.state),
-        })
+        self.update(
+            {
+                Attributes.STATE: self.map_entity_states(self._device.state),
+            }
+        )
 
     def map_entity_states(self, device_state: MediaStates) -> RemoteStates:
         """Map media player states to remote states."""
