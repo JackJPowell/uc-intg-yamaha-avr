@@ -43,9 +43,8 @@ async def main():
             lambda cfg, dev: [
                 YamahaSelect(cfg, dev, select_config)
                 for select_config in dev.selects.values()
-                if select_config.options  # only register selects with options loaded
             ],
-        ],  # type: ignore[arg-type]
+        ],
     )
 
     driver.config_manager = BaseConfigManager(
