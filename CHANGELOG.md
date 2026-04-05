@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.2.4 - 2026-04-04
+
+### Fixed
+- Select entities are now always registered regardless of whether their option list has been populated, ensuring they appear correctly on first-time setup
+
+---
+
 ## v1.2.3 - 2026-03-24
 
 ### Added
