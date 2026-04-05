@@ -15,7 +15,12 @@ from ucapi import media_player
 from ucapi.select import States as SelectStates
 from ucapi.sensor import States as SensorStates
 from ucapi_framework import StatelessHTTPDevice, BaseIntegrationDriver
-from ucapi_framework.helpers import MediaPlayerAttributes, RemoteAttributes, SensorAttributes, SelectAttributes
+from ucapi_framework.helpers import (
+    MediaPlayerAttributes,
+    RemoteAttributes,
+    SensorAttributes,
+    SelectAttributes,
+)
 
 _LOG = logging.getLogger(__name__)
 
@@ -174,7 +179,9 @@ class YamahaAVR(StatelessHTTPDevice):
     # Each entity type reads from the shared device state.
     # Accessors construct the appropriate dataclass on the fly.
 
-    def get_media_player_attributes(self, device_id: str) -> MediaPlayerAttributes | None:
+    def get_media_player_attributes(
+        self, device_id: str
+    ) -> MediaPlayerAttributes | None:
         """Return current MediaPlayer attributes for the given device."""
         if device_id != self.identifier:
             return None
@@ -198,13 +205,17 @@ class YamahaAVR(StatelessHTTPDevice):
             return None
         return RemoteAttributes(STATE=None)
 
-    def get_sensor_attributes(self, device_id: str, sensor_id: str) -> SensorAttributes | None:
+    def get_sensor_attributes(
+        self, device_id: str, sensor_id: str
+    ) -> SensorAttributes | None:
         """Return current Sensor attributes for the given sensor on the device."""
         if device_id != self.identifier:
             return None
         return self._sensor_attributes(sensor_id)
 
-    def get_select_attributes(self, device_id: str, select_id: str) -> SelectAttributes | None:
+    def get_select_attributes(
+        self, device_id: str, select_id: str
+    ) -> SelectAttributes | None:
         """Return current Select attributes for the given select on the device.
 
         The current option is read from the shared SensorConfig.value so that
@@ -219,7 +230,8 @@ class YamahaAVR(StatelessHTTPDevice):
         sensor_cfg = self.sensors.get(select_id)
         current_value = sensor_cfg.value if sensor_cfg else None
         select_state = (
-            SelectStates.ON if self._state == media_player.States.ON
+            SelectStates.ON
+            if self._state == media_player.States.ON
             else SelectStates.UNAVAILABLE
         )
         return SelectAttributes(
@@ -230,6 +242,17 @@ class YamahaAVR(StatelessHTTPDevice):
 
     # ── Connection / update lifecycle ─────────────────────────────────────────
 
+    def _session(self) -> aiohttp.ClientSession:
+        """Return a ClientSession with force_close=True.
+
+        Using force_close prevents aiohttp from pooling TCP connections across
+        requests.  Without it, keep-alive connections are left open when the
+        session context-manager exits and aiohttp emits "Unclosed connection"
+        warnings on the event loop.
+        """
+        connector = aiohttp.TCPConnector(force_close=True)
+        return aiohttp.ClientSession(connector=connector)
+
     async def verify_connection(self) -> None:
         """Verify the device connection."""
         _LOG.debug(
@@ -237,7 +260,7 @@ class YamahaAVR(StatelessHTTPDevice):
             self.log_id,
             self.address,
         )
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             avr = AsyncDevice(session, self.address)
             await avr.request(Zone.get_status(self.zone))
             _LOG.debug("[%s] Device connection verified", self.log_id)
@@ -253,7 +276,7 @@ class YamahaAVR(StatelessHTTPDevice):
         _LOG.debug("[%s] Updating attributes", self.log_id)
         status: dict = {}
 
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             try:
                 avr = AsyncDevice(session, self.address)
                 status_res = await avr.request(Zone.get_status(zone=self.zone))
@@ -286,9 +309,7 @@ class YamahaAVR(StatelessHTTPDevice):
 
                 try:
                     main_zone = next(
-                        zone
-                        for zone in self._features["zone"]
-                        if zone["id"] == "main"
+                        zone for zone in self._features["zone"] if zone["id"] == "main"
                     )
                     range_steps = main_zone["range_step"]
                     self._sound_mode_list = main_zone.get("sound_program_list", [])
@@ -327,8 +348,23 @@ class YamahaAVR(StatelessHTTPDevice):
         if not self._source_list:
             _LOG.warning("[%s] No input list configured, using defaults", self.log_id)
             self._source_list = [
-                "tuner", "hdmi1", "hdmi2", "hdmi3", "hdmi4", "hdmi5", "hdmi6", "hdmi7",
-                "av1", "av2", "av3", "tv", "audio1", "audio2", "audio3", "audio4", "phono",
+                "tuner",
+                "hdmi1",
+                "hdmi2",
+                "hdmi3",
+                "hdmi4",
+                "hdmi5",
+                "hdmi6",
+                "hdmi7",
+                "av1",
+                "av2",
+                "av3",
+                "tv",
+                "audio1",
+                "audio2",
+                "audio3",
+                "audio4",
+                "phono",
             ]
 
         if status:
@@ -345,11 +381,15 @@ class YamahaAVR(StatelessHTTPDevice):
         """Send a command to the AVR."""
         res: str = ""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 avr = AsyncDevice(session, self.address)
                 _LOG.debug(
                     "[%s] Sending command: %s, group: %s, args: %s, kwargs: %s",
-                    self.log_id, command, group, args, kwargs,
+                    self.log_id,
+                    command,
+                    group,
+                    args,
+                    kwargs,
                 )
                 match group:
                     case "system":
@@ -372,8 +412,12 @@ class YamahaAVR(StatelessHTTPDevice):
                             case "setSpeakerPattern":
                                 pattern = kwargs.get("pattern")
                                 if pattern is None:
-                                    raise ValueError("Missing required parameter 'pattern'")
-                                res = await avr.request(System.set_speaker_pattern(int(pattern)))
+                                    raise ValueError(
+                                        "Missing required parameter 'pattern'"
+                                    )
+                                res = await avr.request(
+                                    System.set_speaker_pattern(int(pattern))
+                                )
 
                     case "zone":
                         zone = kwargs.get("zone")
@@ -392,7 +436,9 @@ class YamahaAVR(StatelessHTTPDevice):
                                     case "standby":
                                         self._state = media_player.States.STANDBY
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
@@ -401,7 +447,9 @@ class YamahaAVR(StatelessHTTPDevice):
                                 sleep = int(kwargs["sleep"])
                                 res = await avr.request(Zone.set_sleep(zone, sleep))
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
@@ -416,9 +464,13 @@ class YamahaAVR(StatelessHTTPDevice):
                                     )
                                 else:
                                     volume = self._calculate_volume(kwargs)
-                                    res = await avr.request(Zone.set_volume(zone, volume, 1))
+                                    res = await avr.request(
+                                        Zone.set_volume(zone, volume, 1)
+                                    )
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._actual_volume = status.get("actual_volume", {})
                                 self._volume_level = status.get("volume", 0)
@@ -428,20 +480,26 @@ class YamahaAVR(StatelessHTTPDevice):
                             case "setMute":
                                 mute = kwargs["mute"]
                                 if mute == "toggle":
-                                    current_status = await avr.request(Zone.get_status(zone))
+                                    current_status = await avr.request(
+                                        Zone.get_status(zone)
+                                    )
                                     current_status = await current_status.json()
                                     mute = not current_status["mute"]
                                 res = await avr.request(Zone.set_mute(zone, mute))
                                 self._muted = mute
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
 
                             case "controlCursor":
                                 cursor = kwargs["cursor"]
-                                res = await avr.request(Zone.control_cursor(zone, cursor))
+                                res = await avr.request(
+                                    Zone.control_cursor(zone, cursor)
+                                )
 
                             case "controlMenu":
                                 menu = kwargs["menu"]
@@ -453,19 +511,27 @@ class YamahaAVR(StatelessHTTPDevice):
                                     Zone.set_input(zone, input_source, mode=None)
                                 )
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 source_text = status.get("input_text", input_source)
-                                self._source = source_text if source_text else input_source
+                                self._source = (
+                                    source_text if source_text else input_source
+                                )
                                 self._update_sensors_from_status(status)
                                 self.push_update()
 
                             case "setSoundMode":
                                 sound_mode = kwargs["sound_mode"].lower()
-                                res = await avr.request(Zone.set_sound_program(zone, sound_mode))
+                                res = await avr.request(
+                                    Zone.set_sound_program(zone, sound_mode)
+                                )
                                 self._sound_mode = sound_mode
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
@@ -474,34 +540,48 @@ class YamahaAVR(StatelessHTTPDevice):
                                 res = await avr.request(Zone.set_direct(zone, "True"))
                                 self._sound_mode = "Direct"
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
 
                             case "setPureDirect":
-                                res = await avr.request(Zone.set_pure_direct(zone, "True"))
+                                res = await avr.request(
+                                    Zone.set_pure_direct(zone, "True")
+                                )
                                 self._sound_mode = "Pure Direct"
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
 
                             case "setClearVoice":
-                                res = await avr.request(Zone.set_clear_voice(zone, "True"))
+                                res = await avr.request(
+                                    Zone.set_clear_voice(zone, "True")
+                                )
                                 self._sound_mode = "Clear Voice"
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
 
                             case "setSurroundAI":
                                 enabled = kwargs["enabled"]
-                                res = await avr.request(Zone.set_surround_ai(zone, enable=enabled))
+                                res = await avr.request(
+                                    Zone.set_surround_ai(zone, enable=enabled)
+                                )
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
@@ -512,7 +592,10 @@ class YamahaAVR(StatelessHTTPDevice):
                                 select_cfg = self.selects.get(select_id)
                                 if select_cfg is None:
                                     raise ValueError(f"Unknown select: {select_id}")
-                                if select_cfg.options and option not in select_cfg.options:
+                                if (
+                                    select_cfg.options
+                                    and option not in select_cfg.options
+                                ):
                                     raise ValueError(
                                         f"Option '{option}' not valid for select '{select_id}'. "
                                         f"Valid options: {select_cfg.options}"
@@ -522,7 +605,9 @@ class YamahaAVR(StatelessHTTPDevice):
                                     raise ValueError(
                                         f"Select '{select_id}' has no zone_command configured"
                                     )
-                                zone_method = getattr(Zone, select_cfg.zone_command, None)
+                                zone_method = getattr(
+                                    Zone, select_cfg.zone_command, None
+                                )
                                 if zone_method is None:
                                     raise ValueError(
                                         f"pyamaha Zone has no method '{select_cfg.zone_command}'"
@@ -533,7 +618,9 @@ class YamahaAVR(StatelessHTTPDevice):
                                 if sensor_cfg:
                                     sensor_cfg.value = option
                                 await asyncio.sleep(0.1)
-                                status_res = await avr.request(Zone.get_status(self.zone))
+                                status_res = await avr.request(
+                                    Zone.get_status(self.zone)
+                                )
                                 status = await status_res.json()
                                 self._update_sensors_from_status(status)
                                 self.push_update()
@@ -553,12 +640,16 @@ class YamahaAVR(StatelessHTTPDevice):
                                         "Missing required parameters 'band' and 'num'"
                                     )
                                 res = await avr.request(
-                                    Tuner.recall_preset(zone=zone, band=band, num=int(num))
+                                    Tuner.recall_preset(
+                                        zone=zone, band=band, num=int(num)
+                                    )
                                 )
                             case "switchPreset":
                                 direction = kwargs.get("direction")
                                 if direction is None:
-                                    raise ValueError("Missing required parameter 'direction'")
+                                    raise ValueError(
+                                        "Missing required parameter 'direction'"
+                                    )
                                 res = await avr.request(Tuner.switch_preset(direction))
 
                     case "netusb":
@@ -577,13 +668,22 @@ class YamahaAVR(StatelessHTTPDevice):
             return res
 
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-            _LOG.error("[%s] Network error sending command %s: %s", self.log_id, command, err)
+            _LOG.error(
+                "[%s] Network error sending command %s: %s", self.log_id, command, err
+            )
             raise
         except ValueError as err:
-            _LOG.error("[%s] Invalid parameter for command %s: %s", self.log_id, command, err)
+            _LOG.error(
+                "[%s] Invalid parameter for command %s: %s", self.log_id, command, err
+            )
             raise
         except Exception as err:  # pylint: disable=broad-exception-caught
-            _LOG.error("[%s] Unexpected error sending command %s: %s", self.log_id, command, err)
+            _LOG.error(
+                "[%s] Unexpected error sending command %s: %s",
+                self.log_id,
+                command,
+                err,
+            )
             raise
 
     # ── Volume helpers ────────────────────────────────────────────────────────
@@ -599,10 +699,15 @@ class YamahaAVR(StatelessHTTPDevice):
                 volume = int((percentage / 100.0) * self.max_volume)
                 _LOG.debug(
                     "[%s] Converting volume_level %s%% to %s (max: %s)",
-                    self.log_id, percentage, volume, self.max_volume,
+                    self.log_id,
+                    percentage,
+                    volume,
+                    self.max_volume,
                 )
             except (ValueError, TypeError):
-                _LOG.warning("[%s] Invalid volume_level value: %s", self.log_id, volume_level)
+                _LOG.warning(
+                    "[%s] Invalid volume_level value: %s", self.log_id, volume_level
+                )
                 volume = 0
 
         return int(volume)
@@ -617,7 +722,8 @@ class YamahaAVR(StatelessHTTPDevice):
 
         value = sensor_config.value
         sensor_state = (
-            SensorStates.ON if self._state == media_player.States.ON
+            SensorStates.ON
+            if self._state == media_player.States.ON
             else SensorStates.UNAVAILABLE
         )
 
