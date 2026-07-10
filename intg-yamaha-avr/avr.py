@@ -406,9 +406,13 @@ class YamahaAVR(StatelessHTTPDevice):
                                 code = kwargs.get("code", "")
                                 res = await avr.request(System.send_ir_code(code))
                             case "setHdmiOut1":
-                                res = await avr.request(System.set_hdmi_out_1("True"))
+                                res = await avr.request(
+                                    System.set_hdmi_out_1(kwargs["enabled"])
+                                )
                             case "setHdmiOut2":
-                                res = await avr.request(System.set_hdmi_out_2("True"))
+                                res = await avr.request(
+                                    System.set_hdmi_out_2(kwargs["enabled"])
+                                )
                             case "setSpeakerPattern":
                                 pattern = kwargs.get("pattern")
                                 if pattern is None:
