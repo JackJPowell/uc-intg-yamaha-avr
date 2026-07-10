@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## v1.2.5 - 2026-07-10
+
+### Fixed
+- HDMI Output 1 and Output 2 off commands now send `enable=false` to the receiver instead of enabling the output
+
+---
+
 ## v1.2.4 - 2026-04-04
 
 ### Fixed
